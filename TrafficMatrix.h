@@ -214,6 +214,7 @@ public:
 		}
 		return -1;
 	}
+protected:
 	bool CheckSpectrumGrooming(Link l1, Link l2, int width)
 	{
 		// megy ut a-bol c be és c- bol b -be
@@ -238,6 +239,9 @@ public:
 	{
 
 	}
+
+public:
+	//
 	bool Grooming(int s, int t, int width) 
 	{
 		int nodeNum = m_trafficMatrix.GetNodeNum();
@@ -249,7 +253,7 @@ public:
 			if ( (!m_trafficMatrix.Get(s, i)->m_Links.empty() )
 				&& (!m_trafficMatrix.Get(i, t)->m_Links.empty()) ) 
 			{
-				l1.push_back(i);     // TODO 2 utvanl hosszat összad , e szerint break set-be 
+				l1.push_back(i);     // TODO 2 utvanl hosszat összad , e szerint berak set-be 
 			}
 			Path<ListGraph> p;
 

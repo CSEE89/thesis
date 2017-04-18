@@ -84,6 +84,78 @@ int main() {
 	//TestMatrix();
 			
 }
+
+//make a test graph, test cases
+class TestGraph1
+{
+	ListGraph graph;
+	Node A,B,C,D,E,F;
+	Edge ab, ac, bc, bd, be, ce, cd, de, df, ef;
+	
+public:
+
+	TestGraph1()
+	{
+		A = graph.addNode();
+		B = graph.addNode();
+		C = graph.addNode();
+		D = graph.addNode();
+		E = graph.addNode();
+		F = graph.addNode();
+
+		// arcs
+		ab = graph.addEdge(A, B);
+		ac = graph.addEdge(A, C);
+		bc = graph.addEdge(B, C);
+		bd = graph.addEdge(B, D);
+		be = graph.addEdge(B, E);
+		ce = graph.addEdge(C, E);
+		cd = graph.addEdge(C, D);
+		de = graph.addEdge(D, E);
+		df = graph.addEdge(D, F);
+		ef = graph.addEdge(E, F);
+	}
+
+	void CreateEps()
+	{
+		typedef dim2::Point<int> Point;
+		
+		ListGraph::NodeMap<Point> coords(graph);
+		ListGraph::NodeMap<double> sizes(graph);
+		ListGraph::NodeMap<int> colors(graph);
+		ListGraph::NodeMap<int> shapes(graph);
+		ListGraph::EdgeMap<int> acolors(graph);
+		ListGraph::EdgeMap<int> widths(graph);
+
+		coords[A] = Point(50, 50);  sizes[n1] = 1; colors[n1] = 1; shapes[n1] = 0;
+		coords[B] = Point(50, 70);  sizes[n2] = 2; colors[n2] = 2; shapes[n2] = 2;
+		coords[C] = Point(70, 70);  sizes[n3] = 1; colors[n3] = 3; shapes[n3] = 0;
+		coords[D] = Point(70, 50);  sizes[n4] = 2; colors[n4] = 4; shapes[n4] = 1;
+		coords[E] = Point(85, 60);  sizes[n5] = 3; colors[n5] = 5; shapes[n5] = 2;
+		coords[F] = Point(85, 60);  sizes[n5] = 3; colors[n5] = 5; shapes[n5] = 2;
+
+		Arc a;
+
+		a = g.addArc(n1, n2); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n2, n3); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n3, n5); acolors[a] = 0; widths[a] = 3;
+		a = g.addArc(n5, n4); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n4, n1); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n2, n4); acolors[a] = 1; widths[a] = 2;
+		a = g.addArc(n3, n4); acolors[a] = 2; widths[a] = 1;
+
+		IdMap<ListDigraph, Node> id(g);
+
+		// Create .eps files showing the digraph with different options
+		cout << "Create 'graph_to_eps_demo_out_1_pure.eps'" << endl;
+		graphToEps(g, "graph_to_eps_demo_out_1_pure.eps").
+			coords(coords).
+			title("Sample .eps figure").
+			copyright("(C) 2003-2009 LEMON Project").
+			run();
+	}
+
+};
 void Simulation()
 {
 	Random random;
