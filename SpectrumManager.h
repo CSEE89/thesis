@@ -54,6 +54,7 @@ public:
 		int pos = 0;
 		SpectrumState pathspectrum = getPathSpectrum(path);
 		SpectrumState linkSpectrum;
+		//az uj link spektruma, miket kell lefgolalni
 		if (!makeLinkSpectrum(pathspectrum, linkSpectrum, width, pos)) {
 			return -1;
 		}
@@ -63,7 +64,8 @@ public:
 
 		//int n1, n2;
 		//n1 = graph->id(graph->source(path.front()));
-		//n2 = graph->id(graph->target(path.back()));  //itt mért nem target?		
+		//n2 = graph->id(graph->target(path.back()));  //itt mért nem target?	
+		//tenyleges allocalas
 		Path<ListGraph>::ArcIt arc_it(path);
 		for (arc_it; arc_it != INVALID; ++arc_it)
 		{
@@ -75,7 +77,7 @@ public:
 		return pos;
 	}
 
-	bool ForceAlloc(SpectrumState spec, Path<ListGraph> &path)
+	bool ForceAlloc(Path<ListGraph> &path, SpectrumState spec)
 	{
 		Path<ListGraph>::ArcIt arc_it(path);
 		for (arc_it; arc_it != INVALID; ++arc_it)

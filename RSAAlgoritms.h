@@ -40,36 +40,75 @@ public:
 		m_pSpectrum_manager = p;
 		m_pTraffic_manager->SetSpectrumManager(p);
 	}
+
 	virtual void run(Node s, Node t, const int width, const long int duration) 
 	{
 		int nS = m_graph.id(s);
 		int nT = m_graph.id(t);
-		//Link groomLink;
-//todo		bool bGromming = m_pTraffic_manager->Gromming(nS, nT, width, &groomLink);
-//		if (bGromming)
+		Link matrixLink2Alloc1, matrixLink2Alloc2;
+		Link* origMatrixLink1 = nullptr; 
+		Link* origMatrixLink2 = nullptr;
+		Link algorithmLink;
+		int groomingLength(0), algorithmLength(0);
+		bool end2endGrooming = m_pTraffic_manager->End2endGrooming();
+		if(end2endGrooming)
 		{
-		//	m_pSpectrum_manager->forceAlloc(groomLink.m_path,groomLink.m_spectrum);
-		//	m_pTraffic_manager->AddRequest(nS, nT, width, duration, linkSpectrum);
+			return;
 		}
-		if (1) {}
-		else 		{
-			Path path = calcPath(s, t, width);
-			SpectrumState linkSpectrum;
-			if (!path.empty())
+		bool bGromming = m_pTraffic_manager->Grooming(nS, nT, width, origMatrixLink1, origMatrixLink2, &matrixLink2Alloc1, &matrixLink2Alloc2);
+		//if (bGromming)
+		//{
+			//m_pSpectrum_manager->forceAlloc(matrixLink1.m_path, matrixLink1.m_spectrum);
+			//m_pSpectrum_manager->forceAlloc(matrixLink2.m_path, matrixLink2.m_spectrum);
+			//m_pTraffic_manager->AddRequest(nS, nT, width, duration, matrixLink1.m_spectrum);			
+			//m_pTraffic_manager->AddRequest(nS, nT, width, duration, matrixLink2.m_spectrum);
+			groomingLength = matrixLink2Alloc1.m_path.length() + matrixLink2Alloc2.m_path.length();
+		//}
+		//else {
+			algorithmLink.m_path = calcPath(s, t, width);
+			
+			//if (!algorithmLink.m_path.empty())
+			//{
+			//	if (pos == -1)
+			//		_ASSERT(0);
+			//	algorithmLength = algorithmLink.m_path.length();
+			//	//int pos = m_pSpectrum_manager->alloc(width, path, linkSpectrum); //spectrum, graf, traffic_manager?				
+			//	//m_pTraffic_manager->AddRequest(nS, nT, width, duration, linkSpectrum);
+			//	//blokk
+			//	m_allocated = algorithmLink.m_path;
+			//	//traffic_manager.addLink(link); //
+			//}
+		//}
+		//decide wich methdos paths to alloc*******************
+		if ((algorithmLength > 0) || (groomingLength > 0))
+		{
+			if (groomingLength < algorithmLength)
 			{
-				int pos = m_pSpectrum_manager->alloc(width, path, linkSpectrum); //spectrum, graf, traffic_manager?
-				if (pos == -1)
-					_ASSERT(0);
-				//blokk
-				m_pTraffic_manager->AddRequest(nS, nT, width, duration, linkSpectrum);
-				m_allocated = path;
-				//traffic_manager.addLink(link); //
+				m_pSpectrum_manager->ForceAlloc(matrixLink2Alloc1.m_path, matrixLink2Alloc1.m_spectrum);
+				m_pSpectrum_manager->ForceAlloc(matrixLink2Alloc2.m_path, matrixLink2Alloc2.m_spectrum);
+				
+				origMatrixLink1->m_spectrum. or (matrixLink2Alloc1.m_spectrum); //traffic matrix meglovo elemtet szelesitjuk
+				
+				m_pTraffic_manager->ExtendRequest(nS, nT, width, duration, matrixLink2Alloc1.m_spectrum);			
+				m_pTraffic_manager->ExtendRequest(nS, nT, width, duration, matrixLink2Alloc2.m_spectrum);
 			}
 			else
-			{
-				//blokkolas
+			{				
+				if (m_pSpectrum_manager->alloc(width, algorithmLink.m_path, algorithmLink.m_spectrum) != -1)
+				{
+					m_pTraffic_manager->AddRequest(nS, nT, width, duration, algorithmLink);
+				}
+				else
+				{
+					//TODO BLOKKOLAS
+				}
 			}
 		}
+		else
+		{
+			//TODO blokkolas
+		}
+
 	};
 	SpectrumManager* getManager() { return m_pSpectrum_manager; }
 	virtual Path calcPath(Node s, Node t, const int width) abstract;
@@ -227,19 +266,18 @@ private:
 	*/
 	Path CreatePath(int width) override
 	{
+		Path ret;
 		for (std::multiset<pathpair, comp>::iterator it = _set.begin(); it != _set.end(); it++)
 		{
-
 			SpectrumState spectrum(it->second); //KOPI KONSTRUKTOR
 
 			if (m_pSpectrum_manager->checkSpectrum(width, spectrum))
 			{
-				return (Path)it->first;
+				ret = (Path)it->first;
+				break;
 			}
-
 		}
-		Path b;
-		return b;
+		return ret;
 	}
 
 };

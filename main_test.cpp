@@ -12,6 +12,167 @@ using namespace lemon;
 int CH::channel_num(50);
 void TestMatrix();
 
+typedef ListGraph::Node Node;
+typedef ListGraph::Edge Edge;
+typedef PathNodeIt<Path<ListGraph> > PN;
+
+
+//make a test graph, test cases
+class TestGraph1
+{
+	ListGraph graph;
+	Node A, B, C, D, E, F;
+	Edge ab, ac, bc, bd, be, ce, cd, de, df, ef;
+
+public:
+
+	TestGraph1()
+	{
+		A = graph.addNode();
+		B = graph.addNode();
+		C = graph.addNode();
+		D = graph.addNode();
+		E = graph.addNode();
+		F = graph.addNode();
+
+		// arcs
+		ab = graph.addEdge(A, B);
+		ac = graph.addEdge(A, C);
+		bc = graph.addEdge(B, C);
+		bd = graph.addEdge(B, D);
+		be = graph.addEdge(B, E);
+		ce = graph.addEdge(C, E);
+		cd = graph.addEdge(C, D);
+		de = graph.addEdge(D, E);
+		df = graph.addEdge(D, F);
+		ef = graph.addEdge(E, F);
+	}
+
+	ListGraph* GetGraph()
+	{
+		return &graph;
+	}
+	void CreateEps()
+	{
+		typedef dim2::Point<int> Point;
+
+		ListGraph::NodeMap<Point> coords(graph);
+		ListGraph::NodeMap<double> sizes(graph);
+		ListGraph::NodeMap<int> colors(graph);
+		ListGraph::NodeMap<int> shapes(graph);
+		ListGraph::EdgeMap<int> acolors(graph);
+		ListGraph::EdgeMap<int> widths(graph);
+
+		coords[A] = Point(50, 50);   sizes[A] = 1;	colors[A] = 1; shapes[A] = 1;
+		coords[B] = Point(70, 70);   sizes[B] = 1;	colors[B] = 1; shapes[B] = 1;
+		coords[C] = Point(70, 30);	 sizes[C] = 1;	colors[C] = 1; shapes[C] = 1;
+		coords[D] = Point(120, 70);  sizes[D] = 1;	colors[D] = 1; shapes[D] = 1;
+		coords[E] = Point(120, 30);  sizes[E] = 1;	colors[E] = 1; shapes[E] = 1;
+		coords[F] = Point(150, 50);  sizes[F] = 1;	colors[F] = 1; shapes[F] = 1;
+		/*
+		Arc a;
+
+		a = g.addArc(n1, n2); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n2, n3); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n3, n5); acolors[a] = 0; widths[a] = 3;
+		a = g.addArc(n5, n4); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n4, n1); acolors[a] = 0; widths[a] = 1;
+		a = g.addArc(n2, n4); acolors[a] = 1; widths[a] = 2;
+		a = g.addArc(n3, n4); acolors[a] = 2; widths[a] = 1;
+		*/
+		IdMap<ListGraph, Node> id(graph);
+
+		// Create .eps files showing the digraph with different options
+		//cout << "Create 'graph_to_eps_demo_out_1_pure.eps'" << endl;
+		//graphToEps(graph, "graph_to_eps_demo_out_1_pure.eps").
+		//	coords(coords).
+		//	title("Sample .eps figure").
+		//	copyright("(C) 2003-2009 LEMON Project").
+		//	run();
+
+		graphToEps(graph, "graph_to_eps_demo_out_2.eps").
+			coords(coords).
+			title("Sample .eps figure").
+			copyright("(C) 2003-2009 LEMON Project").
+			absoluteNodeSizes().absoluteArcWidths().
+			nodeScale(2).nodeSizes(sizes).
+			nodeShapes(shapes).
+			nodeTexts(id).nodeTextSize(3).
+			run();
+	}
+
+};
+
+class TestGraph2 : public ListGraph
+{
+	Node A, B, C, D, E, F;
+	Edge ab, ac, bc, bd, be, ce, cd, de, df, ef;
+
+public:
+
+	TestGraph2()
+	{
+		A = addNode();
+		B = addNode();
+		C = addNode();
+		D = addNode();
+		E = addNode();
+		F = addNode();
+
+		// arcs
+		ab = addEdge(A, B);
+		ac = addEdge(A, C);
+		bc = addEdge(B, C);
+		bd = addEdge(B, D);
+		be = addEdge(B, E);
+		ce = addEdge(C, E);
+		cd = addEdge(C, D);
+		de = addEdge(D, E);
+		df = addEdge(D, F);
+		ef = addEdge(E, F);
+	}
+
+	void CreateEps()
+	{
+		typedef dim2::Point<int> Point;
+
+		ListGraph::NodeMap<Point> coords(*this);
+		ListGraph::NodeMap<double> sizes(*this);
+		ListGraph::NodeMap<int> colors(*this);
+		ListGraph::NodeMap<int> shapes(*this);
+		ListGraph::EdgeMap<int> acolors(*this);
+		ListGraph::EdgeMap<int> widths(*this);
+
+		coords[A] = Point(50, 50);   sizes[A] = 1;	colors[A] = 1; shapes[A] = 1;
+		coords[B] = Point(70, 70);   sizes[B] = 1;	colors[B] = 1; shapes[B] = 1;
+		coords[C] = Point(70, 30);	 sizes[C] = 1;	colors[C] = 1; shapes[C] = 1;
+		coords[D] = Point(120, 70);  sizes[D] = 1;	colors[D] = 1; shapes[D] = 1;
+		coords[E] = Point(120, 30);  sizes[E] = 1;	colors[E] = 1; shapes[E] = 1;
+		coords[F] = Point(150, 50);  sizes[F] = 1;	colors[F] = 1; shapes[F] = 1;
+		
+		IdMap<ListGraph, Node> id(*this);
+
+		// Create .eps files showing the digraph with different options
+		//cout << "Create 'graph_to_eps_demo_out_1_pure.eps'" << endl;
+		//graphToEps(graph, "graph_to_eps_demo_out_1_pure.eps").
+		//	coords(coords).
+		//	title("Sample .eps figure").
+		//	copyright("(C) 2003-2009 LEMON Project").
+		//	run();
+
+		graphToEps(*this, "graph_to_eps_demo_out_2.eps").
+			coords(coords).
+			title("Sample .eps figure").
+			copyright("(C) 2003-2009 LEMON Project").
+			absoluteNodeSizes().absoluteArcWidths().
+			nodeScale(2).nodeSizes(sizes).
+			nodeShapes(shapes).
+			nodeTexts(id).nodeTextSize(3).
+			run();
+	}
+
+};
+
 int main() {
 	
 	std::vector<vector<int> > eu_servers;
@@ -55,10 +216,25 @@ int main() {
 	* kötögelés
 	* genetikus
 	*/
-	typedef ListGraph::Node Node;
-	typedef ListGraph::Edge Edge;
-	typedef PathNodeIt<Path<ListGraph> > PN;
+
+	
+	//Test
+	TestGraph2 testGraph;
+	//gr.CreateEps();
+
+	RSABuilder rb;
+	rb.setGraph(testGraph);
+	rb.createSpectrumMap();
+	rb.setAllocMethod(new BaseSpectrumCheck);
+	ModDijkstra<ListGraph> *mod = rb.createModDijkstra();
+	mod->run(testGraph.nodeFromId(0), testGraph.nodeFromId(5), 10, 10);
+	mod->run(testGraph.nodeFromId(0), testGraph.nodeFromId(5), 10, 10);
+	//mod->printAllocatedNodes();
+	SpectrumMap* map = mod->getManager()->getMap();
+	printSpectrum(rb.getSpectrumMap(), testGraph);
+	//Test end
 	ListGraph graph;
+#if 0
 	lemon::graphReader(graph, "28_eu.lgf").run();
 
 	deparallel(graph);
@@ -79,83 +255,10 @@ int main() {
 	//printSpectrum(map, graph);
 	//cout << endl;
 	//printSpectrum(rb.getSpectrumMap(),graph);
-	
-
-	//TestMatrix();
-			
+#endif		
 }
 
-//make a test graph, test cases
-class TestGraph1
-{
-	ListGraph graph;
-	Node A,B,C,D,E,F;
-	Edge ab, ac, bc, bd, be, ce, cd, de, df, ef;
-	
-public:
 
-	TestGraph1()
-	{
-		A = graph.addNode();
-		B = graph.addNode();
-		C = graph.addNode();
-		D = graph.addNode();
-		E = graph.addNode();
-		F = graph.addNode();
-
-		// arcs
-		ab = graph.addEdge(A, B);
-		ac = graph.addEdge(A, C);
-		bc = graph.addEdge(B, C);
-		bd = graph.addEdge(B, D);
-		be = graph.addEdge(B, E);
-		ce = graph.addEdge(C, E);
-		cd = graph.addEdge(C, D);
-		de = graph.addEdge(D, E);
-		df = graph.addEdge(D, F);
-		ef = graph.addEdge(E, F);
-	}
-
-	void CreateEps()
-	{
-		typedef dim2::Point<int> Point;
-		
-		ListGraph::NodeMap<Point> coords(graph);
-		ListGraph::NodeMap<double> sizes(graph);
-		ListGraph::NodeMap<int> colors(graph);
-		ListGraph::NodeMap<int> shapes(graph);
-		ListGraph::EdgeMap<int> acolors(graph);
-		ListGraph::EdgeMap<int> widths(graph);
-
-		coords[A] = Point(50, 50);  sizes[n1] = 1; colors[n1] = 1; shapes[n1] = 0;
-		coords[B] = Point(50, 70);  sizes[n2] = 2; colors[n2] = 2; shapes[n2] = 2;
-		coords[C] = Point(70, 70);  sizes[n3] = 1; colors[n3] = 3; shapes[n3] = 0;
-		coords[D] = Point(70, 50);  sizes[n4] = 2; colors[n4] = 4; shapes[n4] = 1;
-		coords[E] = Point(85, 60);  sizes[n5] = 3; colors[n5] = 5; shapes[n5] = 2;
-		coords[F] = Point(85, 60);  sizes[n5] = 3; colors[n5] = 5; shapes[n5] = 2;
-
-		Arc a;
-
-		a = g.addArc(n1, n2); acolors[a] = 0; widths[a] = 1;
-		a = g.addArc(n2, n3); acolors[a] = 0; widths[a] = 1;
-		a = g.addArc(n3, n5); acolors[a] = 0; widths[a] = 3;
-		a = g.addArc(n5, n4); acolors[a] = 0; widths[a] = 1;
-		a = g.addArc(n4, n1); acolors[a] = 0; widths[a] = 1;
-		a = g.addArc(n2, n4); acolors[a] = 1; widths[a] = 2;
-		a = g.addArc(n3, n4); acolors[a] = 2; widths[a] = 1;
-
-		IdMap<ListDigraph, Node> id(g);
-
-		// Create .eps files showing the digraph with different options
-		cout << "Create 'graph_to_eps_demo_out_1_pure.eps'" << endl;
-		graphToEps(g, "graph_to_eps_demo_out_1_pure.eps").
-			coords(coords).
-			title("Sample .eps figure").
-			copyright("(C) 2003-2009 LEMON Project").
-			run();
-	}
-
-};
 void Simulation()
 {
 	Random random;

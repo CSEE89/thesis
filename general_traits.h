@@ -76,9 +76,12 @@ protected:
 public:
 	SpectrumState()
 	{
-
 		carrier = std::bitset<BITSETCNT>(0);
-		Path<ListGraph> pathi;
+	}
+
+	SpectrumState(const SpectrumState &other)	
+	{
+		carrier = other.carrier;
 	}
 
 	/// Két szál spektrumának összevagyolása, this-> carrier kapja az összevagyolt értékeket
@@ -101,6 +104,41 @@ public:
 	std::bitset<BITSETCNT>::reference at(int i){ return carrier[i]; }
 
 };
+/*class SpectrumStateEX 
+{
+	const SpectrumState *m_spectrumS;
+public:
+	
+	SpectrumStateEX(const SpectrumState* sp)
+	{
+		m_spectrumS = sp;
+	}
+
+	inline void BeginEnd(int &begin, int &end)
+	{
+		bool first = false;
+		for (int i = 0; i < BITSETCNT; i++)
+		{
+
+			if (m_spectrumS->carrier[i] && !first)
+			{
+				begin = i;
+				first = true;
+			}
+			else if (!carrier[i] && first)
+			{
+				end = i;
+				break;
+			}
+		}
+	}
+
+	inline void Zero()
+	{
+		std::bitset<BITSETCNT> n;
+		carrier = n;
+	}
+};*/
 
 class SpectrumStateEX : public SpectrumState
 {
