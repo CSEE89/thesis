@@ -63,9 +63,7 @@ class SpectrumMap : public ListGraph::EdgeMap<SpectrumState>
 /**
 Csatornák száma, beaállítva a main.cpp ben
 */
-struct CH{
-	static int channel_num;
-};
+
 
 #define BITSETCNT 64
 
@@ -89,11 +87,30 @@ public:
 	{
 		carrier |= s.carrier;
 	}
+	inline void dealloc(SpectrumState &s)
+	{
+		//s.carrier != s.carrier;
+		//carrier &= s.carrier;
+		carrier ^= s.carrier;
+		//for (int i = 0; i < BITSETCNT; i++)
+		//{
+		//	if (s.carrier[i])
+		//		carrier[i] = 0;
+		//}
+	}
 
+	bool Equal(SpectrumState &s)
+	{
+		return carrier == s.carrier;
+	}
+	bool operator==(SpectrumState &s)
+	{
+		return carrier == s.carrier;
+	}
 	/// spektrum kiirasa
 	void print()
 	{
-		for (int i = 0; i<CH::channel_num; i++)
+		for (int i = 0; i<BITSETCNT; i++)
 		{
 			std::cout << carrier[i] << " ";
 		}
@@ -163,6 +180,70 @@ public:
 				break;
 			}			
 		}
+	}
+	int valami(int a, int b)
+	{
+		return 1;
+	}
+	inline bool DeallocAndInvert(int width, SpectrumState * toDealloc)
+	{
+		bool begin = false;
+		
+		for (int i = 0; i < BITSETCNT; i++)
+		{
+			if (carrier[i])
+			{
+				begin = true;
+				carrier[i] = 0;
+				toDealloc->operator[](i) = 1;
+				width--;
+			}
+			else if(begin) {
+				_ASSERT(0);
+			}
+			if (width == 0)
+			{
+				if ((i < BITSETCNT) && carrier[i + 1])
+				{
+					return false;
+				}
+				else if((i < BITSETCNT) && !carrier[i + 1]) 
+				{
+					return true;
+				}
+				return false;
+			}
+		}
+	}
+
+	//van a 2 kozt hezag
+	bool TestIfNeighbour(SpectrumState &st)
+	{
+		bool started = false;
+		bool ended = false;
+		for (int i = 0; i < BITSETCNT; i++)
+		{
+			if (carrier[i] || st[i])
+			{
+				started = 1;
+				if (ended)
+					return false;
+			}
+			if (started && (!carrier[i] && !st[i]))
+				ended = true;
+		}
+		return true;
+	}
+
+	int countOnes() 
+	{
+		int ones = 0;
+		for (int i = 0; i < BITSETCNT; i++)
+		{
+			if (carrier[i])
+				ones++;
+		}
+		return ones;
 	}
 
 	inline void Zero() 
@@ -272,6 +353,7 @@ void printNode(const pathpair_vector &vec, const ListGraph &graph)
 void printSpectrum(ListGraph::EdgeMap<SpectrumState> *spectrum_map, const ListGraph &g)
 {
 	ListGraph::EdgeIt eit(g);
+	//cout << endl;
 	for (eit; eit != INVALID; ++eit)
 	{
 		spectrum_map->operator[](eit).print();
@@ -280,7 +362,24 @@ void printSpectrum(ListGraph::EdgeMap<SpectrumState> *spectrum_map, const ListGr
 
 }
 
+double spectrumUtilization(ListGraph::EdgeMap<SpectrumState> *spectrum_map, const ListGraph &g)
+{
+	ListGraph::EdgeIt eit(g);
+	//cout << endl;
+	int edgeNum = lemon::countEdges(g);
+	int ones = 0;
+	for (eit; eit != INVALID; ++eit)
+	{
+		SpectrumStateEX sex( spectrum_map->operator[](eit) );
+		ones += sex.countOnes();
+		//std::cout << std::endl;
+	}
+
+	return double((double)ones / (double)(64 * edgeNum));
+}
+
 class PathNodes{
+public:
 	std::vector<Node> p_nodes;
 	
 public:

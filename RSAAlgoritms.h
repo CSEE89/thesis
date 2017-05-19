@@ -3,7 +3,7 @@
 #include"Kshort_mod.h"
 #include "TrafficMatrix.h"
 
-#define REQUESTES_HINT 10000
+//#define REQUESTES_HINT 10000
 
 #ifndef RSA
 #define RSA
@@ -12,20 +12,21 @@
 */
 template<typename GR>
 class Algorithm {
+
+template<class GR> friend class SimulationMethod;
 protected:
 	typedef Path<GR> Path;
 	//	Grooming &grooming;
 	SpectrumManager		*m_pSpectrum_manager = nullptr;
 	TrafficManager		*m_pTraffic_manager	 = nullptr;
-	//RequestMatrix	m_trafficMatrix;
-
+	long long		m_nBlockNum = 0;
 	Path			m_allocated;
 	GR&				m_graph;
 
 public:
-	Algorithm(GR &graph) :m_graph(graph)
+	Algorithm(GR &graph,int reqnum) :m_graph(graph)
 	{
-		m_pTraffic_manager = new TrafficManager(REQUESTES_HINT, lemon::countNodes(graph));
+		m_pTraffic_manager = new TrafficManager(reqnum, lemon::countNodes(graph));
 		//cout << "Algorithm default";
 	}
 	~Algorithm()
@@ -45,82 +46,93 @@ public:
 	{
 		int nS = m_graph.id(s);
 		int nT = m_graph.id(t);
-		Link matrixLink2Alloc1, matrixLink2Alloc2;
-		Link* origMatrixLink1 = nullptr; 
-		Link* origMatrixLink2 = nullptr;
+		SpectrumState mGroomSpectrum1, mGroomSpectrum2, end2EndSepctrum;
+		MatrixLink* origMGroomingLink1 = nullptr; 
+		MatrixLink* origMGroomingLink2 = nullptr;
+		MatrixLink* origEnd2Link		 = nullptr;
+
 		Link algorithmLink;
-		int groomingLength(0), algorithmLength(0);
-		bool end2endGrooming = m_pTraffic_manager->End2endGrooming();
+		int groomingLength	= 0;
+		int algorithmLength = 0;
+		bool end2endGrooming = false;
+		bool bGromming = false;
+
+		end2endGrooming = m_pTraffic_manager->End2endGrooming(nS, nT, width, &origEnd2Link,&end2EndSepctrum);
 		if(end2endGrooming)
 		{
+			m_pSpectrum_manager->ForceAlloc(origEnd2Link->m_path, end2EndSepctrum);
+		
+			SpectrumStateEX se(origEnd2Link->m_spectrum);
+			if (se.TestIfNeighbour(end2EndSepctrum) == false)
+				_ASSERT(0);
+		
+			origEnd2Link->m_spectrum. or (end2EndSepctrum);
+		
+			m_pTraffic_manager->ExtendRequest(nS, nT, width, duration, origEnd2Link->linkID);
 			return;
 		}
-		bool bGromming = m_pTraffic_manager->Grooming(nS, nT, width, origMatrixLink1, origMatrixLink2, &matrixLink2Alloc1, &matrixLink2Alloc2);
-		//if (bGromming)
-		//{
-			//m_pSpectrum_manager->forceAlloc(matrixLink1.m_path, matrixLink1.m_spectrum);
-			//m_pSpectrum_manager->forceAlloc(matrixLink2.m_path, matrixLink2.m_spectrum);
-			//m_pTraffic_manager->AddRequest(nS, nT, width, duration, matrixLink1.m_spectrum);			
-			//m_pTraffic_manager->AddRequest(nS, nT, width, duration, matrixLink2.m_spectrum);
-			groomingLength = matrixLink2Alloc1.m_path.length() + matrixLink2Alloc2.m_path.length();
-		//}
-		//else {
-			algorithmLink.m_path = calcPath(s, t, width);
-			
-			//if (!algorithmLink.m_path.empty())
-			//{
-			//	if (pos == -1)
-			//		_ASSERT(0);
-			//	algorithmLength = algorithmLink.m_path.length();
-			//	//int pos = m_pSpectrum_manager->alloc(width, path, linkSpectrum); //spectrum, graf, traffic_manager?				
-			//	//m_pTraffic_manager->AddRequest(nS, nT, width, duration, linkSpectrum);
-			//	//blokk
-			//	m_allocated = algorithmLink.m_path;
-			//	//traffic_manager.addLink(link); //
-			//}
-		//}
+		bGromming = m_pTraffic_manager->MatrixGroomingShortest(nS, nT, width, &origMGroomingLink1, &origMGroomingLink2,
+			&mGroomSpectrum1, &mGroomSpectrum2);
+		if (bGromming)
+		{
+			groomingLength = origMGroomingLink1->m_path.length() + origMGroomingLink2->m_path.length();
+		}
+		
+		algorithmLink.m_path = calcPath(s, t, width);
+		algorithmLength = algorithmLink.m_path.length();
+
 		//decide wich methdos paths to alloc*******************
 		if ((algorithmLength > 0) || (groomingLength > 0))
 		{
-			if (groomingLength < algorithmLength)
+			if ( ((groomingLength <= algorithmLength) && bGromming && (algorithmLength > 0)) || (algorithmLength == 0) )
 			{
-				m_pSpectrum_manager->ForceAlloc(matrixLink2Alloc1.m_path, matrixLink2Alloc1.m_spectrum);
-				m_pSpectrum_manager->ForceAlloc(matrixLink2Alloc2.m_path, matrixLink2Alloc2.m_spectrum);
+				m_pSpectrum_manager->ForceAlloc(origMGroomingLink1->m_path, mGroomSpectrum1);
+				m_pSpectrum_manager->ForceAlloc(origMGroomingLink2->m_path, mGroomSpectrum2);
 				
-				origMatrixLink1->m_spectrum. or (matrixLink2Alloc1.m_spectrum); //traffic matrix meglovo elemtet szelesitjuk
-				
-				m_pTraffic_manager->ExtendRequest(nS, nT, width, duration, matrixLink2Alloc1.m_spectrum);			
-				m_pTraffic_manager->ExtendRequest(nS, nT, width, duration, matrixLink2Alloc2.m_spectrum);
+				//debug
+				SpectrumStateEX se(origMGroomingLink1->m_spectrum);
+				if (se.TestIfNeighbour(mGroomSpectrum1) == false)
+					_ASSERT(0);
+				SpectrumStateEX se1(origMGroomingLink2->m_spectrum);
+				if (se1.TestIfNeighbour(mGroomSpectrum2) == false)
+					_ASSERT(0);
+
+				origMGroomingLink1->m_spectrum. or (mGroomSpectrum1); //traffic matrix meglovo elemtet szelesitjuk
+				origMGroomingLink2->m_spectrum. or (mGroomSpectrum2);
+								
+				m_pTraffic_manager->ExtendRequest(origMGroomingLink1->s, origMGroomingLink1->t, width, duration, origMGroomingLink1->linkID);
+				m_pTraffic_manager->ExtendRequest(origMGroomingLink2->s, origMGroomingLink2->t, width, duration, origMGroomingLink2->linkID);
 			}
-			else
+			else if(algorithmLength > 0)
 			{				
-				if (m_pSpectrum_manager->alloc(width, algorithmLink.m_path, algorithmLink.m_spectrum) != -1)
+				if ( m_pSpectrum_manager->Alloc(width, algorithmLink.m_path, algorithmLink.m_spectrum) )
 				{
-					m_pTraffic_manager->AddRequest(nS, nT, width, duration, algorithmLink);
+					m_pTraffic_manager->AddRequest(nS, nT, width, duration, algorithmLink); // TODO check if matrix stores correctly
 				}
 				else
 				{
-					//TODO BLOKKOLAS
+					m_nBlockNum += (width * duration);
 				}
 			}
 		}
 		else
 		{
-			//TODO blokkolas
+			m_nBlockNum += (width * duration);
 		}
+		m_pTraffic_manager->IncTime();
+	}
 
-	};
 	SpectrumManager* getManager() { return m_pSpectrum_manager; }
 	virtual Path calcPath(Node s, Node t, const int width) abstract;
 	virtual Path getAllocatedPath(){
 		return m_allocated;
 	}
-	virtual Path CreatePath(int width) abstract;
-	TrafficMatrix* GetMatrix() 
+	//virtual Path CreatePath(int width) abstract;
+	TrafficManager* GetTrafficManager()
 	{
-		return m_trafficMatrix;
+		return m_pTraffic_manager;
 	}
-
+	long long GetBlockNum() { return m_nBlockNum; }
 };
 
 /** TO DOS:
@@ -145,7 +157,7 @@ ModDijkstra osztály, az algoritmus a LEMON módosított Dijktra osztályra épül
 	cost_Map* lengthmap;
 
 public:
-	ModDijkstra(GR &_graph ):Algorithm<GR>(_graph){
+	ModDijkstra(GR &_graph,int reqhint ):Algorithm<GR>(_graph,reqhint){
 		MapFactory<GR> mapf;
 		permittingmap = mapf.createPermittingmap(m_graph);
 		pathmap = mapf.createPathMap(m_graph);
@@ -171,10 +183,11 @@ public:
 
 	Path calcPath(Node s, Node t, const int width)
 	{
+		this->init();
 		m_allocated.clear();
 		bool switcher = false; // tudunk e allokálni valamelyik út mentén
 		int pos(0);
-		SpectrumMap* map = m_pSpectrum_manager->getMap();
+		SpectrumMap* map = m_pSpectrum_manager->GetMap();
 		lemon::csabi::Dijkstra<GR, cost_Map> dijkstra(m_graph, *lengthmap, *map);
 		setperm(width);
 		dijkstra.init();
@@ -188,10 +201,11 @@ public:
 		dijkstra.init();
 		dijkstra.modaddSource(t, *pathmap);
 		dijkstra.modstart(*permittingmap, *pathmap);
+
 		setfill(pathmap->operator[](s), temp);
 
 		//this->init()
-		return CreatePath(width);
+		return CreatePath(s,t,width);
 	}
 
 	void printAllocated(){
@@ -213,7 +227,8 @@ private:
 		}
 	}
 
-	void init(){
+	void init() 
+	{
 		GR::NodeIt it(m_graph);
 		for (it; it != INVALID; ++it)
 		{
@@ -224,8 +239,8 @@ private:
 		this->pathmap = mapf.createPathMap(m_graph);
 		GR::EdgeIt eit(m_graph);
 		_set.clear();
-
 	}
+
 	/**
 	Két útvonalhalmazt ad össze és rendez hossz szerint, majd bemásolja a _set halmaz tárolóba
 	*/
@@ -256,7 +271,7 @@ private:
 	void setperm(const int &width){
 		for (GR::EdgeIt it(m_graph); it != INVALID; ++it) //végigjárjuk az összes élet és megnézzük van e elég hely
 		{
-			SpectrumMap* spectrum_map = m_pSpectrum_manager->getMap();
+			SpectrumMap* spectrum_map = m_pSpectrum_manager->GetMap();
 			permittingmap->operator[](it) = SpectrumManager::SetPermittingSpectrum(width, spectrum_map->operator[](it));
 		}
 	}
@@ -264,7 +279,7 @@ private:
 	/**Végigmegyünk az utvonalhalmazon amit megtalált az algoritmus, kiválasztjuk azt az útvonalat amin az spektrumallokálási módszer talál szabad sávot
 	* függvényparaméterként átvett tmpPath-ba teszi az utat
 	*/
-	Path CreatePath(int width) override
+	Path CreatePath(Node s, Node t, int width) //override
 	{
 		Path ret;
 		for (std::multiset<pathpair, comp>::iterator it = _set.begin(); it != _set.end(); it++)
@@ -273,8 +288,14 @@ private:
 
 			if (m_pSpectrum_manager->checkSpectrum(width, spectrum))
 			{
-				ret = (Path)it->first;
-				break;
+				Path p = it->first;
+				PathNodes pn(p, m_graph);
+				if (((pn.beginNode() == s) || (pn.beginNode() == t)) && ((pn.endNode() == s) || (pn.endNode() == t)))
+				{
+					ret = (Path)it->first;
+					break;
+				}
+				else { _ASSERT(0); }
 			}
 		}
 		return ret;
@@ -287,56 +308,369 @@ private:
 /**Class Kshort
 */
 template<typename GR>class Kshort : public KShortestPath<GR>, public Algorithm<GR>{	
-	int K;
+	int K = 1;
 public:
 
-	Kshort(GR &graph) :KShortestPath(graph)
+	Kshort(GR &graph,int reqhint) :KShortestPath(graph), Algorithm<GR>(graph,reqhint)
 	{
 
 	}
-	void setK(int &k){
+	void setK(int k =1){
 		K = k;
 	}
 	Path calcPath(Node s, Node t, const int width){
 		A.clear();
 		YenKshort(s, t, K);	
-		return createPath(width);
+		return CreatePath(width);
 	}
 
 private:
 
-
-	Path CreatePath(int width) override
+	Path CreatePath(int width) //override
 	{
-		for (std::vector<std::vector<int> >::const_iterator it = A.begin(); it != A.end(); it++)
+		Path ret;
+		//for (std::vector<std::vector<int> >::const_iterator it = A.begin(); it != A.end(); it++)
+		for (int i = 0; i < A.size(); i++)
 		{
-			Path path = vector2Path(it);
+			ret = vector2Path(A[i]);
 
-			SpectrumState pathSpectrum = m_pSpectrum_manager->getPathSpectrum(path); //útvonal sepktruma
+			SpectrumState pathSpectrum = m_pSpectrum_manager->getPathSpectrum(ret); //útvonal sepktruma
 
 			//if (GlobalSpectrumState::getInstance().checkSelector(width, spectrum) && !path.empty())  //alloc_pos beállítás ha van elég spektrum
-			if (m_pSpectrum_manager->checkSpectrum(width,pathSpectrum) && !path.empty())  //alloc_pos beállítás ha van elég spektrum
+			if (m_pSpectrum_manager->checkSpectrum(width,pathSpectrum) && !ret.empty())  //alloc_pos beállítás ha van elég spektrum
 			{
-				return path;
+				return ret;
 			}
 
 		}
-		return Path path;
+		return ret;
 	}
 
 private:
 	Path vector2Path(std::vector<int> &vec){
-		Path<ListGraph> tmpPath;
+		Path tmpPath;
 		for (int i = 1; i<vec.size(); i++)
 		{
 			int j = i - 1;
-			Node s = graph.nodeFromId(it->at(i));
-			Node t = graph.nodeFromId(it->at(j));
+			Node s = graph.nodeFromId(vec[i]);
+			Node t = graph.nodeFromId(vec[j]);
 			ListGraph::Arc arc = lemon::findArc(graph, s, t);
 			tmpPath.addBack(arc);
 		}
 		return tmpPath;
 	}
 
+};
+
+template <typename GR> class SimulationMethod {
+
+protected:
+	Algorithm<GR>		*m_algorithm;
+	GR					*m_graph;
+	SpectrumManager		*m_pSpectrumManager = nullptr;
+	TrafficManager		*m_pTraffic_manager = nullptr;
+	long long			*m_nBlockNum = 0;
+	__int64				m_sumSp = 0;
+	int					m_mGroomcnt = 0;
+	int					m_eGroomcnt = 0;
+		
+public:
+	SimulationMethod(Algorithm<GR> * algorithm)
+	{
+		m_algorithm			= algorithm;
+		m_graph				= &(m_algorithm->m_graph);
+		m_pSpectrumManager	= m_algorithm->m_pSpectrum_manager;
+		m_pTraffic_manager	= m_algorithm->m_pTraffic_manager;
+		m_nBlockNum			= &(m_algorithm->m_nBlockNum);
+	}
+
+	__int64 GetSumSP() { return m_sumSp; }
+
+	int GetActiveNum() { return m_pTraffic_manager->GetActive(); }
+
+	int GetmGroomCnt() { return m_mGroomcnt; }
+
+	int GeteGroomCnt() { return m_eGroomcnt; }
+
+	virtual void run(Node s, Node t, const int width, const long int duration)
+	{
+		int nS = m_graph->id(s);
+		int nT = m_graph->id(t);
+
+		Link algorithmLink;
+		int algorithmLength = 0;
+		
+		algorithmLink.m_path = m_algorithm->calcPath(s, t, width);
+		algorithmLength = algorithmLink.m_path.length();
+
+		if (algorithmLength > 0)
+		{
+			m_sumSp += ShortestPathLength(s, t);
+			//if (len> algorithmLength)
+			//	_ASSERT(0);
+			if (m_pSpectrumManager->Alloc(width, algorithmLink.m_path, algorithmLink.m_spectrum))
+			{
+				m_pTraffic_manager->AddRequest(nS, nT, width, duration, algorithmLink); // TODO check if matrix stores correctly
+			}
+			else
+			{
+				*m_nBlockNum += 1;///(width * duration);
+			}
+		}
+		else
+		{
+			*m_nBlockNum += 1;//(width * duration);
+		}		
+		m_pTraffic_manager->IncTime();
+	}
+
+	int ShortestPathLength(Node s, Node t)
+	{
+		//calc shortest path
+		GR::EdgeMap<int> lengthmap1(*m_graph);
+
+		for (GR::EdgeIt it(*m_graph); it != INVALID; ++it)
+		{
+			lengthmap1.set(it, 1);
+		}
+
+		Path<GR> sp;
+
+		//Dijkstra<GR, GR::EdgeMap<int>> dijkstra(*m_graph, lengthmap1);
+		//dijkstra.init();
+		//dijkstra.addSource(s);
+		//dijkstra.start();
+		//sp = dijkstra.path(t);
+		//PathNodes pn(sp, *m_graph);
+		//KShortestPath<GR>::Length_Map lengthmap(*m_graph);
+		KShortestPath<GR>::Distance_Map dist(*m_graph);
+		dijkstra(*m_graph, lengthmap1).distMap(dist).path(sp).run(s, t);
+		int spLength = sp.length();
+		return sp.length();
+	}
+};
+
+
+
+template<typename GR> class MatrixGrooming : public SimulationMethod<GR> {
+	
+public:
+	MatrixGrooming(Algorithm<GR> * algorithm) :SimulationMethod<GR>(algorithm)
+	{
+		m_pTraffic_manager->SetSpectrumGrooming(eMatrixGroomingMethod::eSplittedSpectrum);
+	}
+
+	virtual void run(Node s, Node t, const int width, const long int duration) override
+	{
+		int nS = m_graph->id(s);
+		int nT = m_graph->id(t);
+		SpectrumState mGroomSpectrum1, mGroomSpectrum2, end2EndSepctrum;
+		MatrixLink* origMGroomingLink1 = nullptr;
+		MatrixLink* origMGroomingLink2 = nullptr;
+		MatrixLink* origEnd2Link = nullptr;
+
+		Link algorithmLink;
+		int groomingLength = 0;
+		int algorithmLength = 0;
+		bool end2endGrooming = false;
+		bool bGromming = false;
+
+		//end2end grooming******
+		end2endGrooming = m_pTraffic_manager->End2endGrooming(nS, nT, width, &origEnd2Link, &end2EndSepctrum);
+		if (end2endGrooming)
+		{
+			m_pSpectrumManager->ForceAlloc(origEnd2Link->m_path, end2EndSepctrum);
+
+			SpectrumStateEX se(origEnd2Link->m_spectrum);
+			if (se.TestIfNeighbour(end2EndSepctrum) == false)
+				_ASSERT(0);
+
+			origEnd2Link->m_spectrum. or (end2EndSepctrum);
+
+			m_pTraffic_manager->ExtendRequest(nS, nT, width, duration, origEnd2Link->linkID);
+			m_eGroomcnt++;
+			m_pTraffic_manager->IncTime();
+			return;
+		}
+		
+		bGromming = m_pTraffic_manager->MatrixGroomingShortest(nS, nT, width, &origMGroomingLink1, &origMGroomingLink2,
+			&mGroomSpectrum1, &mGroomSpectrum2);
+		if (bGromming)
+		{
+			groomingLength = origMGroomingLink1->m_path.length() + origMGroomingLink2->m_path.length();
+		}
+
+		algorithmLink.m_path = m_algorithm->calcPath(s, t, width);
+		algorithmLength = algorithmLink.m_path.length();
+
+		//decide wich methdos paths to alloc*******************
+		if ((algorithmLength > 0) || (groomingLength > 0))
+		{
+			if (((groomingLength < algorithmLength) && bGromming && (algorithmLength > 0)) ||
+				(algorithmLength == 0) && ((double)groomingLength < (double)ShortestPathLength(s, t) * (double)1.5))
+			{
+				m_pSpectrumManager->ForceAlloc(origMGroomingLink1->m_path, mGroomSpectrum1);
+				m_pSpectrumManager->ForceAlloc(origMGroomingLink2->m_path, mGroomSpectrum2);
+
+				//debug
+				//SpectrumStateEX se(origMGroomingLink1->m_spectrum);
+				//if (se.TestIfNeighbour(mGroomSpectrum1) == false)
+				//	_ASSERT(0);
+				//SpectrumStateEX se1(origMGroomingLink2->m_spectrum);
+				//if (se1.TestIfNeighbour(mGroomSpectrum2) == false)
+				//	_ASSERT(0);
+
+				origMGroomingLink1->m_spectrum. or (mGroomSpectrum1); //traffic matrix meglovo elemtet szelesitjuk
+				origMGroomingLink2->m_spectrum. or (mGroomSpectrum2);
+				
+				m_pTraffic_manager->ExtendRequest(origMGroomingLink1->s, origMGroomingLink1->t, width, duration, origMGroomingLink1->linkID);
+				m_pTraffic_manager->ExtendRequest(origMGroomingLink2->s, origMGroomingLink2->t, width, duration, origMGroomingLink2->linkID);
+				m_mGroomcnt++;
+			}
+			else if (algorithmLength > 0)
+			{
+				if (m_pSpectrumManager->Alloc(width, algorithmLink.m_path, algorithmLink.m_spectrum))
+				{
+					m_pTraffic_manager->AddRequest(nS, nT, width, duration, algorithmLink); // TODO check if matrix stores correctly
+				}
+				else
+				{
+					*m_nBlockNum += 1;// (width * duration);
+				}
+			}
+		}
+		else
+		{
+			*m_nBlockNum += 1;// (width * duration);
+		}
+		m_pTraffic_manager->IncTime();
+	}
+};
+
+
+
+template<typename GR> class MatrixGroomingContSpectrum : public SimulationMethod<GR> {
+
+public:
+	MatrixGroomingContSpectrum(Algorithm<GR> * algorithm):SimulationMethod<GR>( algorithm)
+	{
+		m_pTraffic_manager->SetSpectrumGrooming(eMatrixGroomingMethod::eContSpectrum);
+	}
+
+	//MatrixGroomingLimit(Algorithm<GR> * algorithm)
+	//{
+	//	m_algorithm = algorithm;
+	//	m_graph = &(m_algorithm->m_graph);
+	//	m_pSpectrumManager = m_algorithm->m_pSpectrum_manager;
+	//	m_pTraffic_manager = m_algorithm->m_pTraffic_manager;
+	//	m_nBlockNum = &(m_algorithm->m_nBlockNum);
+	//}
+
+	virtual void run(Node s, Node t, const int width, const long int duration) override
+	{
+		int nS = m_graph->id(s);
+		int nT = m_graph->id(t);
+		SpectrumState mGroomSpectrum1, mGroomSpectrum2, end2EndSepctrum;
+		MatrixLink* origMGroomingLink1 = nullptr;
+		MatrixLink* origMGroomingLink2 = nullptr;
+		MatrixLink* origEnd2Link = nullptr;
+		
+		Link algorithmLink;
+		int groomingLength = 0;
+		int algorithmLength = 0;
+		bool end2endGrooming = false;
+		bool bGromming = false;
+
+		//end2end grooming******
+		end2endGrooming = m_pTraffic_manager->End2endGrooming(nS, nT, width, &origEnd2Link, &end2EndSepctrum);
+		if (end2endGrooming)
+		{
+			m_pSpectrumManager->ForceAlloc(origEnd2Link->m_path, end2EndSepctrum);
+
+			SpectrumStateEX se(origEnd2Link->m_spectrum);
+			if (se.TestIfNeighbour(end2EndSepctrum) == false)
+				_ASSERT(0);
+
+			origEnd2Link->m_spectrum. or (end2EndSepctrum);
+
+			m_pTraffic_manager->ExtendRequest(nS, nT, width, duration, origEnd2Link->linkID);
+			m_eGroomcnt++;
+			m_pTraffic_manager->IncTime();
+			return;
+		}
+
+		bGromming = m_pTraffic_manager->MatrixGroomingShortest(nS, nT, width, &origMGroomingLink1, &origMGroomingLink2,
+			&mGroomSpectrum1, &mGroomSpectrum2);
+		if (bGromming)
+		{
+			groomingLength = origMGroomingLink1->m_path.length() + origMGroomingLink2->m_path.length();
+		}
+
+		algorithmLink.m_path = m_algorithm->calcPath(s, t, width);
+		algorithmLength = algorithmLink.m_path.length();
+
+		//decide wich methdos paths to alloc*******************
+		if ((algorithmLength > 0) || (groomingLength > 0))
+		{
+			if (((groomingLength < algorithmLength) && bGromming && (algorithmLength > 0)) || 
+				 (algorithmLength == 0) && ((double)groomingLength < (double)ShortestPathLength(s,t) * (double)1.5) )
+			{
+				m_pSpectrumManager->ForceAlloc(origMGroomingLink1->m_path, mGroomSpectrum1);
+				m_pSpectrumManager->ForceAlloc(origMGroomingLink2->m_path, mGroomSpectrum2);
+			
+				//debug
+				//SpectrumStateEX se(origMGroomingLink1->m_spectrum);
+				//if (se.TestIfNeighbour(mGroomSpectrum1) == false)
+				//	_ASSERT(0);
+				//SpectrumStateEX se1(origMGroomingLink2->m_spectrum);
+				//if (se1.TestIfNeighbour(mGroomSpectrum2) == false)
+				//	_ASSERT(0);
+				
+				SpectrumStateEX se(origMGroomingLink1->m_spectrum);
+				if (se.TestIfNeighbour(mGroomSpectrum1) == false)
+				{
+					Link newLink = *origMGroomingLink1;
+					newLink.m_spectrum = mGroomSpectrum1;
+					m_pTraffic_manager->AddRequest(origMGroomingLink1->s, origMGroomingLink1->t, width, duration, newLink);
+				}
+				else
+				{
+					origMGroomingLink1->m_spectrum. or (mGroomSpectrum1); //traffic matrix meglovo elemtet szelesitjuk
+					m_pTraffic_manager->ExtendRequest(origMGroomingLink1->s, origMGroomingLink1->t, width, duration, origMGroomingLink1->linkID);
+				}
+
+				SpectrumStateEX se2(origMGroomingLink2->m_spectrum);
+				if (se2.TestIfNeighbour(mGroomSpectrum2) == false)
+				{
+					Link newLink = *origMGroomingLink2;
+					newLink.m_spectrum = mGroomSpectrum2;
+					m_pTraffic_manager->AddRequest(origMGroomingLink2->s, origMGroomingLink2->t, width, duration, newLink);
+				}
+				else
+				{
+					origMGroomingLink2->m_spectrum. or (mGroomSpectrum2); //traffic matrix meglovo elemtet szelesitjuk
+					m_pTraffic_manager->ExtendRequest(origMGroomingLink2->s, origMGroomingLink2->t, width, duration, origMGroomingLink2->linkID);
+				}
+
+				m_mGroomcnt++;
+			}
+			else if (algorithmLength > 0)
+			{
+				if (m_pSpectrumManager->Alloc(width, algorithmLink.m_path, algorithmLink.m_spectrum))
+				{
+					m_pTraffic_manager->AddRequest(nS, nT, width, duration, algorithmLink); // TODO check if matrix stores correctly
+				}
+				else
+				{
+					*m_nBlockNum += 1;// (width * duration);
+				}
+			}
+		}
+		else
+		{
+			*m_nBlockNum += 1;// (width * duration);
+		}
+		m_pTraffic_manager->IncTime();
+	}
 };
 #endif RSA

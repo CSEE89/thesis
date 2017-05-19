@@ -17,10 +17,9 @@ public:
 		spectrum_map = NULL;
 	}
 	SpectrumManager(ListGraph *graph, SpectrumMap *spectrum, AllocMethod &method) :graph(graph), spectrum_map(spectrum), alloc_method(&method) {
-
 	}
 	SpectrumManager(const SpectrumManager &manager) :spectrum_map(manager.spectrum_map), alloc_method(manager.alloc_method), graph(manager.graph) {
-		cout << "spctrum copy NOT TEsted";
+		//cout << "spctrum copy NOT TEsted";
 	}
 	SpectrumState getPathSpectrum(const Path<ListGraph> &path)
 	{
@@ -42,6 +41,13 @@ public:
 		this->alloc_method = p_manager.alloc_method;
 		return *this;
 	}
+
+	SpectrumMap* GetMap() { return spectrum_map; }
+
+	void SetMap(SpectrumMap *spectrumMap) { spectrum_map = spectrumMap;  }
+
+	ListGraph* GetGraph() { return graph; }
+
 	bool checkSpectrum(const int width, SpectrumState& path_spectrum) {
 		if (alloc_method->makeLinkSpectrum(width, path_spectrum) != -1)
 		{
@@ -49,22 +55,22 @@ public:
 		}
 		return false;
 	}
+
 	//SpectrumManager(algorithm)
-	int alloc(const int width, Path<ListGraph> &path, SpectrumState &outSpect) {
-		int pos = 0;
+	bool Alloc(const int width, Path<ListGraph> &path, SpectrumState &outSpect) {
+		if (path.length() == 0)
+			return false;
+		//int pos = 0;
 		SpectrumState pathspectrum = getPathSpectrum(path);
 		SpectrumState linkSpectrum;
 		//az uj link spektruma, miket kell lefgolalni
-		if (!makeLinkSpectrum(pathspectrum, linkSpectrum, width, pos)) {
-			return -1;
+		if (!makeLinkSpectrum(pathspectrum, linkSpectrum, width )) {
+			return false;
 		}
 		else {
 			outSpect = linkSpectrum;
 		}
 
-		//int n1, n2;
-		//n1 = graph->id(graph->source(path.front()));
-		//n2 = graph->id(graph->target(path.back()));  //itt mért nem target?	
 		//tenyleges allocalas
 		Path<ListGraph>::ArcIt arc_it(path);
 		for (arc_it; arc_it != INVALID; ++arc_it)
@@ -74,7 +80,7 @@ public:
 			Edge e = lemon::findEdge(*graph, t, s);
 			spectrum_map->operator[](e). or (linkSpectrum);
 		}
-		return pos;
+		return true;
 	}
 
 	bool ForceAlloc(Path<ListGraph> &path, SpectrumState spec)
@@ -93,7 +99,7 @@ public:
 	static bool SetPermittingSpectrum(const int &width, SpectrumState &spectrum)
 	{
 		int gapwidth(0);
-		for (int i = 0; i < CH::channel_num; i++)
+		for (int i = 0; i < BITSETCNT; i++)
 		{
 			if (!spectrum[i]) { ++gapwidth; }
 			else
@@ -110,13 +116,28 @@ public:
 		return false;
 	}
 
-	SpectrumMap* getMap() { return spectrum_map; }
-	void dealloc();
+	void Dealloc(Link link) 
+	{
+		Path<ListGraph>::ArcIt arc_it(link.m_path);
+		for (arc_it; arc_it != INVALID; ++arc_it)
+		{
+			Node t = graph->target(arc_it);
+			Node s = graph->source(arc_it);
+			Edge e = lemon::findEdge(*graph, t, s);
+			spectrum_map->operator[](e).dealloc (link.m_spectrum);
+		}
+	}
+
+	void Print() 
+	{
+		printSpectrum(spectrum_map, *graph);
+	}
+
 	int getNodeLoad();
 	int getNodeCapacity();
 private:
-	bool makeLinkSpectrum(SpectrumState path_spectrum, SpectrumState &retLinkSpectrum,const int width,int& pos) {
-		pos = 0;
+	bool makeLinkSpectrum(SpectrumState path_spectrum, SpectrumState &retLinkSpectrum,const int width) {
+		int pos = 0;
 		if ((pos=alloc_method->makeLinkSpectrum(width, path_spectrum)) != -1) {
 			for (int i = 0; i<width; i++) { retLinkSpectrum[pos + i] = 1; }
 		}
@@ -131,13 +152,13 @@ private:
 
 
 
-
+/*
 class AllocMethods{
 public:
 	static int TwoSideSpectrumCheck(int width, SpectrumState &spectrum)
 	{
 		int gapwidth1(0), gapwidth2(0), alloc_pos(0);
-		for (int i = 0, j = CH::channel_num - 1; i<CH::channel_num&&j>0; i++, j--)
+		for (int i = 0, j = BITSETCNT - 1; i<BITSETCNT&&j>0; i++, j--)
 		{
 			if (!spectrum[i]) { ++gapwidth1; }
 			else
@@ -171,7 +192,7 @@ public:
 	{
 		int gapwidth(0), alloc_pos(0);
 		std::multiset<GAP, GAPcmp> gaps;
-		for (int i = 0; i<CH::channel_num; i++)
+		for (int i = 0; i<BITSETCNT; i++)
 		{
 			if (!spectrum[i]) { ++gapwidth; }
 			else
@@ -187,7 +208,7 @@ public:
 
 		if (gapwidth>width + 2)
 		{
-			gaps.insert(GAP(CH::channel_num - gapwidth, gapwidth));
+			gaps.insert(GAP(BITSETCNT - gapwidth, gapwidth));
 		}
 
 		std::multiset<GAP, GAPcmp>::iterator it = gaps.begin();
@@ -205,7 +226,7 @@ public:
 	static int BaseSpectrumCheck(int width, SpectrumState &spectrum)
 	{
 		int gapwidth(0), alloc_pos(0);
-		for (int i = 0; i<CH::channel_num; i++)
+		for (int i = 0; i<BITSETCNT; i++)
 		{
 			if (!spectrum[i]) { ++gapwidth; }
 			else
@@ -225,7 +246,7 @@ public:
 	static int OtherBaseSpectrumCheck(int width, SpectrumState &spectrum)
 	{
 		int gapwidth(0), alloc_pos(0);
-		for (int i = CH::channel_num - 1; i>0; i--)
+		for (int i = BITSETCNT - 1; i>0; i--)
 		{
 			if (!spectrum[i]) { ++gapwidth; }
 			else
@@ -241,7 +262,7 @@ public:
 		}
 		return -1;
 	}
-};
+};*/
 //bejárás, spekrum visszadás, módosítás
 //él spektruma
 /*

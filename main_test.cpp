@@ -3,20 +3,37 @@
 #include<lemon/random.h>
 #include<lemon/lp.h>
 #include"Factory.h"
+#include<Windows.h>
 #define REQUESTS 1000
 
 using namespace std;
 using namespace lemon;
 
+__int64 startTimer()
+{
+	__int64 timerStart;
+	QueryPerformanceCounter((LARGE_INTEGER*)&timerStart);
+	return timerStart;
+}
 
-int CH::channel_num(50);
-void TestMatrix();
+double endTimer(__int64 timerStart)
+{
+	__int64 endTime;
+	__int64 procFreq;
+	double Interval;
+	QueryPerformanceCounter((LARGE_INTEGER*)&endTime);
+	QueryPerformanceFrequency((LARGE_INTEGER*)&procFreq);
+	Interval = endTime - timerStart;
+	Interval = (Interval * 1000) / procFreq;
+	return Interval;
+}
+
 
 typedef ListGraph::Node Node;
 typedef ListGraph::Edge Edge;
 typedef PathNodeIt<Path<ListGraph> > PN;
 
-
+void Simulation(int e);
 //make a test graph, test cases
 class TestGraph1
 {
@@ -132,6 +149,77 @@ public:
 		ef = addEdge(E, F);
 	}
 
+	void TestMatrixGrooming1()
+	{
+		RSABuilder rb;
+		rb.setGraph(*this);
+		rb.createSpectrumMap();
+		rb.setAllocMethod(new BaseSpectrumCheck);
+		ModDijkstra<ListGraph> *mod = rb.createModDijkstra(10);
+		mod->run(nodeFromId(0), nodeFromId(1), 10, 10);
+		printSpectrum(rb.getSpectrumMap(), *this); cout << endl;
+		mod->run(nodeFromId(1), nodeFromId(5), 10, 10);
+		printSpectrum(rb.getSpectrumMap(), *this); cout << endl;
+		mod->run(nodeFromId(0), nodeFromId(5), 10, 10);
+		printSpectrum(rb.getSpectrumMap(), *this);
+		//mod->printAllocatedNodes();
+		//SpectrumMap* map = mod->getManager()->getMap();
+		printSpectrum(rb.getSpectrumMap(), *this);
+	}
+
+	void TestEnd2end()
+	{
+		RSABuilder rb;
+		rb.setGraph(*this);
+		rb.createSpectrumMap();
+		rb.setAllocMethod(new BaseSpectrumCheck);
+		ModDijkstra<ListGraph> *mod = rb.createModDijkstra(10);
+		mod->run(nodeFromId(0), nodeFromId(1), 10, 10);
+		printSpectrum(rb.getSpectrumMap(), *this); cout << endl;
+		mod->run(nodeFromId(1), nodeFromId(5), 10, 10);
+		mod->run(nodeFromId(1), nodeFromId(5), 10, 10);
+		printSpectrum(rb.getSpectrumMap(), *this); cout << endl;
+		mod->run(nodeFromId(0), nodeFromId(5), 10, 10);
+		printSpectrum(rb.getSpectrumMap(), *this);
+		//mod->printAllocatedNodes();
+		//SpectrumMap* map = mod->getManager()->getMap();
+		printSpectrum(rb.getSpectrumMap(), *this);
+	}
+	
+	void TestDynamic()
+	{
+		RSABuilder rb;
+		rb.setGraph(*this);
+		rb.createSpectrumMap();
+		rb.setAllocMethod(new BaseSpectrumCheck);
+		//ModDijkstra<ListGraph> *mod = rb.createModDijkstra();
+		Kshort<ListGraph> *mod = rb.createKshort(5, REQUESTS);
+
+				
+		Random random;
+		lemon::Random random1(random);
+		
+		for (int i = 0; i < REQUESTS; i++)
+		{
+			int n1 = random1.integer(0, 5);
+			int n2 = random1.integer(0, 5);
+			// kb 32 igeny legyen egyszerre
+			long dur = (long int)random1.exponential(0.03); // 0.03
+			int width1 = random1.integer(1, 10);
+			int val = random1.integer(1, 100);
+
+			if (n1 != n2) {
+				mod->run(nodeFromId(n1), nodeFromId(n2), width1, dur);
+			}
+		}
+		cout <<endl <<mod->GetBlockNum()<<endl;
+		//mod->printAllocatedNodes();
+		//SpectrumMap* map = mod->getManager()->getMap();
+		printSpectrum(rb.getSpectrumMap(), *this);
+		double util = spectrumUtilization(rb.getSpectrumMap(), *this);
+		cout << endl << util;
+	}
+
 	void CreateEps()
 	{
 		typedef dim2::Point<int> Point;
@@ -171,6 +259,12 @@ public:
 			run();
 	}
 
+};
+
+enum eSimulationMethod {
+	eSM_Normal,
+	eSM_MatrixGroom,
+	eSM_MatrixGroomingContSpectrum
 };
 
 int main() {
@@ -219,9 +313,15 @@ int main() {
 
 	
 	//Test
-	TestGraph2 testGraph;
+	//TestGraph2 testGraph;
+	//testGraph.TestMatrixGrooming1();
+	//testGraph.TestEnd2end();
+	//testGraph.TestDynamic();
 	//gr.CreateEps();
-
+	Simulation(eSM_Normal);
+	//Simulation(eSM_MatrixGroom);
+	Simulation(eSM_MatrixGroomingContSpectrum);
+#if 0
 	RSABuilder rb;
 	rb.setGraph(testGraph);
 	rb.createSpectrumMap();
@@ -233,8 +333,13 @@ int main() {
 	SpectrumMap* map = mod->getManager()->getMap();
 	printSpectrum(rb.getSpectrumMap(), testGraph);
 	//Test end
+#endif
+}
+
+
+void Simulation(int e)
+{
 	ListGraph graph;
-#if 0
 	lemon::graphReader(graph, "28_eu.lgf").run();
 
 	deparallel(graph);
@@ -243,25 +348,67 @@ int main() {
 
 	ListGraph::EdgeMap<int> lengthmap(graph);
 	ListGraph::EdgeMap<bool> permittingmap(graph);
-	
+
 	RSABuilder rb;
 	rb.setGraph(graph);
-	rb.createSpectrumMap();			
+	rb.createSpectrumMap();
 	rb.setAllocMethod(new BaseSpectrumCheck);
-	ModDijkstra<ListGraph> *mod= rb.createModDijkstra();
-	mod->run(graph.nodeFromId(1), graph.nodeFromId(9),10,10);
-	//mod->printAllocatedNodes();
-	SpectrumMap* map = mod->getManager()->getMap();
-	//printSpectrum(map, graph);
-	//cout << endl;
-	//printSpectrum(rb.getSpectrumMap(),graph);
-#endif		
-}
-
-
-void Simulation()
-{
+	ModDijkstra<ListGraph> *mod = rb.createModDijkstra(REQUESTS);
+	SimulationMethod<ListGraph>* smethod = nullptr;
+	switch (e)
+	{
+	case eSM_Normal:
+		smethod = new SimulationMethod<ListGraph>(mod);
+		break;
+	case eSM_MatrixGroom:
+		smethod = new MatrixGrooming<ListGraph>(mod);
+		break;
+	case eSM_MatrixGroomingContSpectrum:
+		smethod = new MatrixGroomingContSpectrum<ListGraph>(mod);
+		break;
+	}
+	//MatrixGroomingLimit<ListGraph> smethod(mod);
+	//SimulationMethod<ListGraph> smethod(mod);
+	__int64 start = startTimer();
 	Random random;
+	lemon::Random random1(random);
+
+	for (int i = 0; i < REQUESTS; i++)
+	{
+		//if (i == 500)
+			//i++;
+		int n1 = random1.integer(0, 27);
+		int n2 = random1.integer(0, 27);
+		long dur = (long int)random1.exponential(0.02); // 0.03
+		if (!(dur > 0))
+			continue;
+		int width1 = random1.integer(1, 10);
+		int val = random1.integer(1, 100);
+
+		if (n1 != n2) {
+			smethod->run(graph.nodeFromId(n1), graph.nodeFromId(n2), width1, dur);
+			//mod->GetTrafficManager()->EqualWithReq();
+		}
+		//if((i % 500) == 0)
+		//	cout<< " active num" << smethod->GetActiveNum() << endl;
+		//if ((i % 10000) == 0)
+		//{
+		//	cout << " resz blokolas" << mod->GetBlockNum() <<" active num" << smethod->GetActiveNum()<< endl;
+		//}
+	}
+	cout <<"mGr" <<smethod->GetmGroomCnt()<<endl;
+	cout <<"eGR" <<smethod->GeteGroomCnt()<<endl;
+	
+	cout << smethod->GetSumSP();
+	cout << endl <<"blokolas"<< mod->GetBlockNum() << endl;
+	//mod->printAllocatedNodes();
+	//SpectrumMap* map = mod->getManager()->getMap();
+	//printSpectrum(rb.getSpectrumMap(), graph);
+	double util = spectrumUtilization(rb.getSpectrumMap(), graph);
+	cout <<"util"  << util << endl;
+	cout << endl;
+	cout << "elapsed" << endTimer(start);
+	delete smethod;
 }
 int Cantor(int k1, int k2)
 {
@@ -269,65 +416,3 @@ int Cantor(int k1, int k2)
 	return c;
 }
 
-#if 0
-void TestMatrix()
-{
-	struct mano
-	{
-		int i1, i2;
-		int val;
-	};
-	TrafficMatrix matrix(28);
-	matrix.Print();
-	Random random;
-	lemon::Random random1(random);
-	unordered_map<int,mano> idxs;
-	
-	idxs.reserve(REQUESTS);
-
-	for (int i = 0; i < REQUESTS; i++)
-	{
-		int n1 = random1.integer(0, 27);
-		int n2 = random1.integer(0, 27);
-		
-		long dur = (long int)random1.exponential(0.03); // 0.03
-		int width1 = random1.integer(1, 5);
-		int val = random1.integer(1, 100);
-
-		if (n1 != n2) {
-			if (n2 > n1)
-			{
-				int t = n2;
-				n2 = n1;
-				n1 = t;
-			}
-			if ((n1 == 1 || n2 == 1) && (n1 == 0 || n2 == 0))
-			{
-				cout << "m";
-			}
-			mano m;
-			m.i1 = n1; m.i2 = n2; m.val = val;
-			int c = Cantor(n1,n2);
-			//idxs.insert(c,m);
-			idxs[c] = m;
-			matrix.A(n1,n2, val);
-		}
-	}
-	mano m;
-	for (auto it = idxs.begin(); it != idxs.end(); it++)
-	{
-		m = it->second;
-		int c = Cantor(m.i1, m.i2);
-		int ref2 = idxs[c].val;
-		int ref = matrix.Get(m.i1, m.i2);
-		if (ref != m.val)
-		{
-			_ASSERT(0);
-		}
-		cout << ref;
-	}
-	// bejaras
-
-	matrix.Print();
-}
-#endif

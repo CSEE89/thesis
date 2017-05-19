@@ -5,15 +5,20 @@
 #define TRAFFIC_MATRIX
 
 
-struct Link {
-	SpectrumState		m_spectrum;
-	Path<ListGraph>		m_path;
+
+class MatrixLink : public Link
+{
+public:
+	int s;
+	int t;
+	int linkID;
 };
 
 struct MatrixNode {
-	multimap<int,Link> m_Links; //egy adott hosszhoz tobb ut is tartozhat
+	map<int, MatrixLink> m_Links; //egy adott hosszhoz tobb ut is tartozhat
 
-	Link GetShortest() {return  m_Links.begin()->second; }
+	MatrixLink GetShortest() {return  m_Links.begin()->second; }
+
 	//void Insert();
 };
 #if 0
@@ -71,19 +76,35 @@ public:
 		}
 	}
 	
-	void Add(int r, int c, Link link) //sor oszlop
+	int Add(int r, int c, Link link) //sor oszlop
 	{
 		int n = CalcIndex(r, c);
 		MatrixNode* node = m_data[n];
-		//node->m_Links[link.m_path.length()]=(link); 
-		node->m_Links.insert(std::pair<int,Link> (link.m_path.length(),link));
+		int key = link.m_path.length();
+		map<int, MatrixLink>::iterator it = node->m_Links.find(key);
+		
+		while(it != node->m_Links.end())
+		{
+			key++;
+			it = node->m_Links.find(key);
+		}
+		//TEST if exist
+		//node->m_Links.find(key);
+		MatrixLink* refLink		= &(node->m_Links[key]);
+		refLink->m_path			= link.m_path;
+		refLink->m_spectrum		= link.m_spectrum;
+		refLink->s				= r;
+		refLink->t				= c;
+		refLink->linkID			= key;
+		return key;
+		//node->m_Links.insert(std::pair<int,Link> (key,link));
 	}
 
-	void Extend(int r, int c, Link data)
-	{
-		//MatrixNode * n = Get(r, c);
-		//n
-	}
+	//void Extend(int r, int c, Link data)
+	//{
+	//	//MatrixNode * n = Get(r, c);
+	//	//n
+	//}
 
 	MatrixNode* Get(int r, int c)
 	{
@@ -127,12 +148,18 @@ protected:
 
 struct Request //int a[4];
 {
-
+	Link		link;
 	long int	m_dur;
 	int			m_width;
 	int			m_s;
 	int			m_t;
+	int			m_iLinkID;
 	Request(long int dur, int width, int s, int t) :m_dur(dur), m_width(width), m_s(s), m_t(t) {}
+};
+
+enum eMatrixGroomingMethod {
+	eSplittedSpectrum,
+	eContSpectrum
 };
 
 class TrafficManager 
@@ -140,43 +167,99 @@ class TrafficManager
 	std::vector<Request>	m_Requests;
 	TrafficMatrix			m_trafficMatrix;
 	SpectrumManager*		m_pSpectrummanager;
+	eMatrixGroomingMethod	m_eMethod;
+
 public:
 	TrafficManager(int requests, int nodeNum) :m_trafficMatrix(nodeNum)
 	{
 		m_Requests.reserve(requests);
 	}
+
 	void SetSpectrumManager(SpectrumManager *p) {
 		m_pSpectrummanager = p;
+	}
 
+	void SetSpectrumGrooming(eMatrixGroomingMethod e)
+	{
+		m_eMethod = e;
 	}
 
 	void AddRequest(int s, int t, int width, long int duration, Link link)
 	{
 		Request req(duration,width,s,t);
+		req.link = link;
+		int linkId = m_trafficMatrix.Add(s,t,link);
+		req.m_iLinkID = linkId;
 		m_Requests.push_back(req);
-		m_trafficMatrix.Add(s,t,link);
 	}
-
-	void ExtendRequest(int s, int t, int width, long int duration, SpectrumState linkspectrum)
+	
+	void ExtendRequest(int s, int t, int width, long int duration,int linkID)
 	{
 		Request req(duration, width, s, t);
+		req.m_iLinkID = linkID;
 		m_Requests.push_back(req);
 	}
+
+	//Alloc es matrix management egyutt
+public:
+	void AddNewLink();
+	void AddNewGroomLink();
 
 	///* egy request lejartakor vagy toroljuk a linket a matrixbol is, \
 	vagy ha extendalva volt csak a megfelelo spektrumszelettel xor
 	void IncTime()
 	{
 		int size = m_Requests.size();
-		Request* ptr = m_Requests.data();
-		for (int i = 0; i < size; i++ )
+		for (int i = 0; i < m_Requests.size(); i++)
 		{
-			ptr->m_dur--;
-			if (ptr->m_dur == 0)
+			m_Requests[i].m_dur--;
+			if (m_Requests[i].m_dur == 0)
 			{
-				DecreaseLink(ptr->m_s, ptr->m_t, ptr->m_width);
+				DecreaseLink(m_Requests[i]);
+				//SimpleDecreaseLink(m_Requests[i]);
 			}
 		}
+	}
+
+	int GetActive()
+	{
+		int active = 0;
+	
+		for (int i = 0; i < m_Requests.size(); i++)
+		{
+			
+			if (m_Requests[i].m_dur > 0)
+				active++;
+		}
+		return active;
+	}
+
+	int EqualWithReq()
+	{
+		SpectrumMap sm(*(m_pSpectrummanager->GetGraph()));
+		SpectrumManager  manager = *m_pSpectrummanager;
+		manager.SetMap(&sm);
+		ListGraph* gr = m_pSpectrummanager->GetGraph();
+		//for every req alloc in sm
+		for (int i = 0;i < m_Requests.size();i++)
+		{
+			if (m_Requests[i].m_dur > 0)
+			{
+				manager.ForceAlloc(m_Requests[i].link.m_path, m_Requests[i].link.m_spectrum);
+			}
+		}
+		SpectrumMap* managerMap = m_pSpectrummanager->GetMap();
+		ListGraph::EdgeIt eit(*gr);
+		//cout << endl;
+		for (eit; eit != INVALID; ++eit)
+		{
+			SpectrumState orig = (*managerMap)[eit];
+			SpectrumState sreq = sm[eit];
+			//managerMap->operator[](eit) == sm->
+			//if (!(orig == sreq))
+				//_ASSERT(0);
+		}
+		return 0;
 	}
 
 	inline int IsThereRoom(SpectrumState spectrum, SpectrumState pathSpectrum, int width, SpectrumState *toall) 
@@ -191,6 +274,8 @@ public:
 		StEx.BeginEnd(begin, end);
 		
 		begin -= width;
+		if (begin < 0)
+			begin = 0;
 		retpos = begin;
 		if (begin > 0)
 		{
@@ -235,99 +320,226 @@ protected:
 	///* megy ut a-bol c be és c- bol b -be
 	// megnezzuk hogy az egyik ut mellett van - e hely, és másik mellett?\
 	// Link spektrumat atirjuk alloc spektrumra
-	bool CheckSpectrumGrooming(Link l1, Link l2, int width, Link *toAlloc1, Link *toAlloc2)
+	bool CheckSpectrumMatrixGrooming(Link l1, Link l2, int width, SpectrumState* toAlloc1, SpectrumState* toAlloc2)
 	{
 		SpectrumState pathSpectrum1 = m_pSpectrummanager->getPathSpectrum(l1.m_path);
 		SpectrumState pathSpectrum2 = m_pSpectrummanager->getPathSpectrum(l2.m_path);
-		int allocpos1 = IsThereRoom(l1.m_spectrum,pathSpectrum1,width, &(toAlloc1->m_spectrum));
+		SpectrumState tpA1;
+		SpectrumState tpA2;
+		int allocpos1 = IsThereRoom(l1.m_spectrum,pathSpectrum1,width, &tpA1);
 		if (allocpos1 == -1)
 			return false;
-		int allocpos2 = IsThereRoom(l1.m_spectrum,pathSpectrum1,width, &(toAlloc2->m_spectrum));
+		int allocpos2 = IsThereRoom(l2.m_spectrum,pathSpectrum1,width, &tpA2);
 		
 		if ((allocpos1 != -1) && (allocpos2 != -1))
 		{
-			//alloc
-			//m_pSpectrummanager->ForceAlloc(toAlloc1, l1.m_path);
-			//m_pSpectrummanager->ForceAlloc(toAlloc2, l2.m_path);
-			toAlloc1->m_path = l1.m_path;
-			toAlloc2->m_path = l2.m_path;
+			*toAlloc1 = tpA1;
+			*toAlloc2 = tpA2;
 			return true;
 		}
 		return false;
 	}
 
-
-public:
-	bool End2endGrooming()
+	//1 a hosszabb szakaszon mellett a masikban ugyanabban savban van e hely?
+	bool CheckSpectrumMatrixGroomingCont(Link l1, Link l2, int width, SpectrumState* toAlloc1, SpectrumState* toAlloc2)
 	{
+		SpectrumState pathSpectrum1 = m_pSpectrummanager->getPathSpectrum(l1.m_path);
+		SpectrumState pathSpectrum2 = m_pSpectrummanager->getPathSpectrum(l2.m_path);
+		SpectrumState sumPathSpectrum = pathSpectrum1;
+		SpectrumState toAll;
+		sumPathSpectrum. or (pathSpectrum2);
+		
+		Link* longerLink = (l1.m_path.length() > l2.m_path.length()) ? &l1 : &l2;		
+		int allocpos = IsThereRoom(longerLink->m_spectrum, sumPathSpectrum, width, &toAll);
+		if (allocpos != -1)
+		{
+			*toAlloc1 = toAll;
+			*toAlloc2 = toAll;
+			return true;
+		}
 		return false;
 	}
-	// s-bol t-be w szelesseg \
-	
-	bool Grooming(int s, int t, int width,Link *orig1,Link* orig2, Link *retLink1,Link *retLink2) 
+
+public:
+	bool End2endGrooming(int s, int t, int width,MatrixLink** orig, SpectrumState* toAlloc)
+	{
+		MatrixNode* n = m_trafficMatrix.Get(s, t);
+		if (! n->m_Links.empty())
+		{
+			for (auto it = n->m_Links.begin();it != n->m_Links.end(); it++)
+			{
+				//Link link = n->m_Links.begin()->second;
+				SpectrumState pathSpectrum = m_pSpectrummanager->getPathSpectrum(it->second.m_path);
+				int allocpos = IsThereRoom(it->second.m_spectrum, pathSpectrum, width, toAlloc);
+				if (allocpos != -1)
+				{
+					*orig = &(it->second);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	bool MultiLevelMatrixGrooming(int s, int t, int width, MatrixLink **orig1, MatrixLink** orig2, SpectrumState *retLink1, SpectrumState *retLink2)
+	{
+
+	}
+
+	// s-bol t-be w szelesseg 	
+	//bool Grooming(int s, int t, int width,Link *orig1,Link* orig2, Link *retLink1,Link *retLink2) 
+	bool MatrixGroomingShortest(int s, int t, int width, MatrixLink **orig1, MatrixLink** orig2, SpectrumState *retLink1, SpectrumState *retLink2)
 	{
 		int nodeNum = m_trafficMatrix.GetNodeNum();
-		//vector<int> l1; l1.reserve(nodeNum); //
 		typedef int LENGTH;		
-		std::map<int, int> matrixNodes;
+		std::multimap<int, int> interNodes;
 		
-		//map<int,int> groomingPaths; //
 		for (int i = 0; i < nodeNum; i++) // vegignezzuk a matrix minden elemet hogy megy e forrasbol oda ut
 		{
-			MatrixNode *n1 = m_trafficMatrix.Get(s, i);
-			MatrixNode *n2 = m_trafficMatrix.Get(i, t);
-			if ( (!n1->m_Links.empty() ) && (!n2->m_Links.empty()) ) 
+			if ((i != s) && (i != t))
 			{
-				//l1.push_back(i);     // TODO 2 utvanl hosszat összad , e szerint berak set-be 
-				//int length = n1->m_Links.at(0).m_path.length() + n2->m_Links.at(0).m_path.length();
-				int length = n1->GetShortest().m_path.length() + n2->GetShortest().m_path.length();
-				matrixNodes[length] = i;//(length, i); //TODO
+				MatrixNode *n1 = m_trafficMatrix.Get(s, i);
+				MatrixNode *n2 = m_trafficMatrix.Get(i, t);
+				if ((!n1->m_Links.empty()) && (!n2->m_Links.empty()))
+				{
+					int length = n1->GetShortest().m_path.length() + n2->GetShortest().m_path.length();
+					interNodes.insert(std::pair<int,int>(length,i));
+					//interNodes[length] = i;					
+				}
 			}
-			//Path<ListGraph> p;
 		}
 		
-		for (int i = 0; i < matrixNodes.size(); i++)
+		for (auto it = interNodes.begin(); it != interNodes.end(); it++)
 		{
-			Link* l1 = &(m_trafficMatrix.Get(s, i)->m_Links.begin()->second);
-			Link* l2 = &(m_trafficMatrix.Get(i, t)->m_Links.begin()->second);
-			
-			if (CheckSpectrumGrooming(*l1, *l2,width, retLink1, retLink2) )
-			{				
-				orig1 = l1;
-				orig2 = l2;
+			int iLookUp = it->second;
+			MatrixLink* l1 = &(m_trafficMatrix.Get(s, iLookUp)->m_Links.begin()->second);
+			MatrixLink* l2 = &(m_trafficMatrix.Get(iLookUp, t)->m_Links.begin()->second);
+			//linkID1 = (m_trafficMatrix.Get(s, iLookUp)->m_Links.begin()->first);
+			//linkID2 = (m_trafficMatrix.Get(iLookUp, t)->m_Links.begin()->first);
+			bool bSpectrum;
+			switch (m_eMethod)
+			{
+				case eMatrixGroomingMethod::eSplittedSpectrum:
+				{
+					bSpectrum = CheckSpectrumMatrixGrooming(*l1, *l2, width, retLink1, retLink2);
+					break;
+				}
+				case eMatrixGroomingMethod::eContSpectrum:
+				{
+					bSpectrum = CheckSpectrumMatrixGroomingCont(*l1, *l2, width, retLink1, retLink2);
+					break;
+				}
+			}
+			if (bSpectrum)
+			{
+				*orig1 = l1;
+				*orig2 = l2;				
+				return true;
+			}
+		}
+		return false;
+	}
+
+#if 0
+	//
+	bool MultiPathMatrixGrooming(int s, int t, int width, Link **orig1, Link** orig2, SpectrumState *retLink1, SpectrumState *retLink2)
+	{
+		int nodeNum = m_trafficMatrix.GetNodeNum();
+		typedef int LENGTH;
+		struct Paths{
+			Link l1;
+			Link l2;
+		};
+		std::multimap<int, Paths> interNodes;
+
+
+
+		for (int i = 0; i < nodeNum; i++) // vegignezzuk a matrix minden elemet hogy megy e forrasbol oda ut
+		{
+			if ((i != s) && (i != t))
+			{
+				MatrixNode *n1 = m_trafficMatrix.Get(s, i);
+				MatrixNode *n2 = m_trafficMatrix.Get(i, t);
+				if ((!n1->m_Links.empty()) && (!n2->m_Links.empty()))
+				{
+					//combine
+				}
+			}
+		}
+
+		for (auto it = interNodes.begin(); it != interNodes.end(); it++)
+		{
+			int iLookUp = it->second;
+			Link* l1 = &(m_trafficMatrix.Get(s, iLookUp)->m_Links.begin()->second);
+			Link* l2 = &(m_trafficMatrix.Get(iLookUp, t)->m_Links.begin()->second);
+
+			if (CheckSpectrumMatrixGrooming(*l1, *l2, width, retLink1, retLink2))
+			{
+				*orig1 = l1;
+				*orig2 = l2;
 				return true;
 			}
 		}
 
-		//
-		/*for (int i = 0; i < m_nodeNum; i++)
-		{
-			for (int j = i + 1; j < m_nodeNum; j++)
-			{
-				key = CalcIndex(i, j);
-				val = new MatrixNode;
-				m_data.emplace(key, val);
-				cnt++;
-			}
-		}*/
 		return false;
 		// if there is link to a-c and c-b try to allocate next to them
 		//m_trafficMatrix.
 		//for(int i)
 	}
-	struct slice 
+#endif
+	/*void DecreaseLink1(Request req)
 	{
-		int pos;
-		int width;
-	};
-	void DecreaseLink(int s, int t, int width)
+		// grooming 2 link
+		// traffic_matrixban keresek leghosszabbtol vissza eleg kapacitast //feltelezem h 2 csomopont koyti linkek osszkapacitasa pont akkor mint ami a a requestvektroban van, osszes elem a 2 csp kozt 
+		// kozben torlom traffic matrixbol ha vminek 0 a kapacitasa
+		// spektrumbol deallok 
+		MatrixNode* n = m_trafficMatrix.Get(req.m_s, req.m_t);
+		int needWidth = req.m_width;
+		for (auto it = n->m_Links.end(); it != n->m_Links.begin() && needWidth > 0; it--)
+		{
+			//it->second.m_spectrum
+			int w = CalcWith()
+				if (w > needWidth)
+				{
+				}
+		}
+		m_pSpectrummanager->Dealloc(link);
+	}*/
+
+	//pont azt torlom ami le volt foglalva, a grooming is tobb link
+
+	void SimpleDecreaseLink(Request req)
 	{
-		//SpectrumState linksSpectrum = m_trafficMatrix.Get(s,t);
-		int gapwidth = 0;
-		// cel a töredezettseg csokkentese, elöszr ha van töredeket törlunk
-		std::set<slice> slices;
-		// delete the smallest or from biggest -> full of smallest or part?
+		m_pSpectrummanager->Dealloc(req.link);
 	}
+
+	void DecreaseLink(Request req)
+	{
+		MatrixNode* n = m_trafficMatrix.Get(req.m_s,req.m_t);
+		if (n->m_Links.find(req.m_iLinkID) == n->m_Links.end()) //ennek az idnek szerepelni kel amit itt ki nem toroltuk
+			_ASSERT(0);
+		Link * link = &(n->m_Links[req.m_iLinkID]);
+		SpectrumStateEX sex(link->m_spectrum);
+		Link toDealloc;
+		toDealloc.m_path = link->m_path;
+		if (sex.DeallocAndInvert(req.m_width, &(toDealloc.m_spectrum)))
+		//sex.valami(1, 2);
+		{
+			n->m_Links.erase(req.m_iLinkID);
+		}
+		else {
+			link->m_spectrum = sex;
+		}
+
+		m_pSpectrummanager->Dealloc(toDealloc);
+	}
+
+	//void DecreaseLink(Request req)
+	//{
+	//	MatrixNode* n = m_trafficMatrix.Get(req.m_s, req.m_t);
+	//	
+	//	m_pSpectrummanager->Dealloc(toDealloc);
+	//}
 
 };
 

@@ -2,7 +2,11 @@
 #ifndef UTILS
 #define UTILS
 
-
+class Link {
+public:
+	SpectrumState		m_spectrum;
+	Path<ListGraph>		m_path;
+};
 
 	void deparallel(ListGraph &graph)
 	{
@@ -54,7 +58,7 @@ class TwoSideSpectrumCheck : public AllocMethod {
 public:
 	int makeLinkSpectrum(const int width, SpectrumState &spectrum) {
 		int gapwidth1(0), gapwidth2(0), alloc_pos(0);
-		for (int i = 0, j = CH::channel_num - 1; i<CH::channel_num&&j>0; i++, j--)
+		for (int i = 0, j = BITSETCNT - 1; i<BITSETCNT&&j>0; i++, j--)
 		{
 			if (!spectrum[i]) { ++gapwidth1; }
 			else
@@ -88,7 +92,7 @@ class BaseSpectrumCheck : public AllocMethod{
 public:
 	int makeLinkSpectrum(const int width, SpectrumState &spectrum) {
 		int gapwidth(0), alloc_pos(0);
-		for (int i = 0; i<CH::channel_num; i++)
+		for (int i = 0; i<BITSETCNT; i++)
 		{
 			if (!spectrum[i]) { ++gapwidth; }
 			else

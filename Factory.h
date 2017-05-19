@@ -48,7 +48,7 @@ public:
 		}
 		return map;
 	}
-	virtual T* create() abstract;
+	virtual T* create(int hint) abstract;
 	virtual ~BaseBuilder()
 	{
 		cout << "memory leak";
@@ -61,17 +61,26 @@ class RSABuilder : public BaseBuilder < Algorithm<ListGraph> >
 	SpectrumManager *m_spectrumManager;
 	AllocMethod* method;
 public:
-	ModDijkstra<ListGraph>* createModDijkstra(){
-		m_result = new ModDijkstra<ListGraph>(*graph);
+	ModDijkstra<ListGraph>* createModDijkstra(int reqhint){
+		m_result = new ModDijkstra<ListGraph>(*graph, reqhint);
 		m_spectrumManager = new SpectrumManager(graph, map, *method);
 		m_result->setSpectrumManager(m_spectrumManager);
 		return dynamic_cast<ModDijkstra<ListGraph>* >(m_result);
 	}
-	ModDijkstra<ListGraph>* create(){
-		return createModDijkstra();
+	ModDijkstra<ListGraph>* create(int reqnum){
+		return createModDijkstra(reqnum);
 	}
 	void setAllocMethod(AllocMethod *p){
 		this->method = p;
+	}
+
+	Kshort<ListGraph>* createKshort(int k,int reqhint) 
+	{
+		m_result = new Kshort<ListGraph>(*graph,reqhint);
+		dynamic_cast<Kshort<ListGraph>*>(m_result)->setK(k);
+		m_spectrumManager = new SpectrumManager(graph, map, *method);
+		m_result->setSpectrumManager(m_spectrumManager);
+		return dynamic_cast<Kshort<ListGraph>* >(m_result);
 	}
 	~RSABuilder()
 	{

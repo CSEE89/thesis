@@ -37,15 +37,23 @@ public:
 
 //-------------------------------------------------------------------------
 template<typename T> class KShortestPath{
-protected:
-
+public:
 	typedef T GR;
-	typedef typename GR::template ArcMap<int> Length_Map; 
+	typedef typename GR::template ArcMap<int> Length_Map;
 	typedef typename GR::template NodeMap<int> Distance_Map;
 	typedef typename GR::template NodeMap<bool> NodeFilter_Map;
 	typedef typename GR::template EdgeMap<bool> EdgeFilter_Map;
 	typedef ListGraph::Node Node;
 	typedef ListGraph::Arc Arc;
+protected:
+
+	//typedef T GR;
+	//typedef typename GR::template ArcMap<int> Length_Map; 
+	//typedef typename GR::template NodeMap<int> Distance_Map;
+	//typedef typename GR::template NodeMap<bool> NodeFilter_Map;
+	//typedef typename GR::template EdgeMap<bool> EdgeFilter_Map;
+	//typedef ListGraph::Node Node;
+	//typedef ListGraph::Arc Arc;
 	std::vector< vector<int> > A;
 	GR &graph;
 
@@ -174,7 +182,7 @@ public:
 				{
 
 					dijkstra(subDigraph, lengthmap).distMap(dist).path(p).run(spurNode, sink);
-					PathNodeIt pit(graph, p);
+					PathNodeIt<lemon::Path<GR> > pit(graph, p);
 
 					for (pit; pit != INVALID; ++pit)
 					{
