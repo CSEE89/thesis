@@ -670,12 +670,12 @@ namespace lemon {
     }
 
 	
-	void modaddSource(Node s, pathpair_vector_NodeMap &pathmap, Value dst = OperationTraits::zero())
+	void modaddSource(Node s, pathpair_vector_NodeMap *pathmap, Value dst = OperationTraits::zero())
 	 { 
 		 listpath p;
 		 SpectrumState st;
 		 pathpair pair(p,st);
-		pathmap[s].push_back(pair);
+		(*pathmap)[s].push_back(pair);
 		
       if(_heap->state(s) != Heap::IN_HEAP) {
         _heap->push(s,dst);
@@ -724,19 +724,19 @@ namespace lemon {
 	
 	// t1 végére felfûzi t2-t\
 	 minden hozzáadott ótvonal spektrumát összevagyolja u-él spektrámval
-	void p_assign(pathpair_vector &t1, pathpair_vector &t2, Arc u)
+	void p_assign(pathpair_vector *t1, pathpair_vector *t2, Arc u)
 	{
-		if(t1.size()<MAX)
+		if(t1->size()<MAX)
 		{
-		for(int i=0;i<t2.size();i++)
+		for(int i=0;i<t2->size();i++)
 			{
-				t1.push_back(t2[i]);
-				t1.back().first.addBack(u);
+				t1->push_back((*t2)[i]);
+				t1->back().first.addBack(u);
 				Node t=G->target(u);
 				Node s=G->source(u);
 				Edge e=lemon::findEdge(*G,t,s);
 				
-				t1.back().second.or(spectrum_map[e]);
+				t1->back().second.or(spectrum_map[e]);
 			}
 		}
 	}
@@ -767,22 +767,22 @@ namespace lemon {
 	// t1 végére t2 ótvonalhalmaz \
 	spektrumok VAGY-olása az aktális éllel\
 	aktuális él hozzáadása
-	int p_checkassign(pathpair_vector &t1, pathpair_vector &t2, Arc u, const Node &w) // hurkok keresése
+	int p_checkassign(pathpair_vector *t1, pathpair_vector *t2, Arc u, const Node &w) // hurkok keresése
 	{
 		int size=0;
-		for(int i=0;i<t2.size();i++)
+		for(int i=0;i<t2->size();i++)
 			{
-				if(t1.size()<MAX)
+				if(t1->size()<MAX)
 				{
-					if(!p_contain(t2[i],u,w))
+					if(!p_contain((*t2)[i],u,w))
 					{
 						size++;
-					t1.push_back(t2[i]);
-					t1.back().first.addBack(u); // sima assgin-nál miért nem?
+					t1->push_back((*t2)[i]);
+					t1->back().first.addBack(u); // sima assgin-nál miért nem?
 					Node t=G->target(u);
 					Node s=G->source(u);
 					Edge e=lemon::findEdge(*G,t,s);
-					t1.back().second.or(spectrum_map[e]);
+					t1->back().second.or(spectrum_map[e]);
 					}
 				}
 			}
@@ -804,7 +804,7 @@ namespace lemon {
 
 //-----------permitting map elõszûrést csinál, az eleve kizárt éleket(ahol semelyik sávban nincs elég hely) kiejtjük    
 	//template<typename stuff>
-	Node modprocessNextNode(permitting_edgeMap &permittingmap, pathpair_vector_NodeMap &pathmap)
+	Node modprocessNextNode(permitting_edgeMap &permittingmap, pathpair_vector_NodeMap *pathmap)
 	{
 		std::vector<Node> level; 
       Node v=_heap->top();
@@ -822,7 +822,7 @@ namespace lemon {
 		Arc u=lemon::findArc(*G,v,w); //Edge-el lehet -e , van e különbség
         switch(_heap->state(w)) {
         case Heap::PRE_HEAP:
-          p_assign(pathmap[w],pathmap[v],u);
+          p_assign(&(*pathmap)[w],&(*pathmap)[v],u);
           _heap->push(w,OperationTraits::plus(oldvalue, (*_length)[e]));
           _pred->set(w,e);
 			
@@ -830,7 +830,7 @@ namespace lemon {
           break;
         case Heap::IN_HEAP:
           { 
-			  p_assign(pathmap[w],pathmap[v],u);
+			  p_assign(&(*pathmap)[w],&(*pathmap)[v],u);
             Value newvalue = OperationTraits::plus(oldvalue, (*_length)[e]);
             if ( OperationTraits::less(newvalue, (*_heap)[w]) ) {
               _heap->decrease(w, newvalue);
@@ -840,7 +840,7 @@ namespace lemon {
           }
           break;
         case Heap::POST_HEAP:
-		int size=p_checkassign(pathmap[w],pathmap[v],u,w);
+		int size=p_checkassign(&(*pathmap)[w],&(*pathmap)[v],u,w);
 
           break;
         }
@@ -899,7 +899,7 @@ namespace lemon {
       while ( !emptyQueue() ) processNextNode(permittingmap);
     }
 
-	void modstart(permitting_edgeMap &permittingmap, pathpair_vector_NodeMap &pathmap)
+	void modstart(permitting_edgeMap &permittingmap, pathpair_vector_NodeMap *pathmap)
     {
       while ( !emptyQueue() ) modprocessNextNode(permittingmap,pathmap);
     }

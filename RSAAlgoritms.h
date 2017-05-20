@@ -191,16 +191,16 @@ public:
 		lemon::csabi::Dijkstra<GR, cost_Map> dijkstra(m_graph, *lengthmap, *map);
 		setperm(width);
 		dijkstra.init();
-		dijkstra.modaddSource(s, *pathmap);
-		dijkstra.modstart(*permittingmap, *pathmap);
+		dijkstra.modaddSource(s, pathmap);
+		dijkstra.modstart(*permittingmap, pathmap);
 
 		pathpair_vector temp(pathmap->operator[](t));
 
 		this->init();
 		setperm(width);
 		dijkstra.init();
-		dijkstra.modaddSource(t, *pathmap);
-		dijkstra.modstart(*permittingmap, *pathmap);
+		dijkstra.modaddSource(t, pathmap);
+		dijkstra.modstart(*permittingmap, pathmap);
 
 		setfill(pathmap->operator[](s), temp);
 
@@ -663,12 +663,14 @@ public:
 				else
 				{
 					*m_nBlockNum += 1;// (width * duration);
+					//printSpectrum(m_pSpectrumManager->GetMap(), *(m_pSpectrumManager->GetGraph()));
 				}
 			}
 		}
 		else
 		{
 			*m_nBlockNum += 1;// (width * duration);
+			//printSpectrum(m_pSpectrumManager->GetMap(), *(m_pSpectrumManager->GetGraph()));
 		}
 		m_pTraffic_manager->IncTime();
 	}

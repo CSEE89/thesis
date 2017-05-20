@@ -280,8 +280,13 @@ public:
 	}
 	path_Map* createPathMap(const GR &g)
 	{
-
-		return new GR::NodeMap<pathpair_vector>(g);
+		path_Map *ret = new GR::NodeMap<pathpair_vector>(g);
+		
+		for(GR::NodeIt it(g); it!= INVALID; ++it)
+		{
+			(*ret)[it].reserve(1000);
+		}
+		return ret;
 	}
 	edge_spectrum_Map* createEdgeSpectrumMap(const GR &g)
 	{
@@ -356,6 +361,9 @@ void printSpectrum(ListGraph::EdgeMap<SpectrumState> *spectrum_map, const ListGr
 	//cout << endl;
 	for (eit; eit != INVALID; ++eit)
 	{
+		Node u = g.u(eit);
+		Node v = g.v(eit);
+		cout << g.id(u)<< " "<<g.id(v)<< " ";
 		spectrum_map->operator[](eit).print();
 		std::cout << std::endl;
 	}

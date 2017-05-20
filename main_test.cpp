@@ -4,7 +4,7 @@
 #include<lemon/lp.h>
 #include"Factory.h"
 #include<Windows.h>
-#define REQUESTS 1000
+#define REQUESTS 10000
 
 using namespace std;
 using namespace lemon;
@@ -319,7 +319,7 @@ int main() {
 	//testGraph.TestDynamic();
 	//gr.CreateEps();
 	Simulation(eSM_Normal);
-	//Simulation(eSM_MatrixGroom);
+	Simulation(eSM_MatrixGroom);
 	Simulation(eSM_MatrixGroomingContSpectrum);
 #if 0
 	RSABuilder rb;
@@ -379,10 +379,10 @@ void Simulation(int e)
 			//i++;
 		int n1 = random1.integer(0, 27);
 		int n2 = random1.integer(0, 27);
-		long dur = (long int)random1.exponential(0.02); // 0.03
+		long dur = (long int)random1.exponential(0.015); // 0.03
 		if (!(dur > 0))
 			continue;
-		int width1 = random1.integer(1, 10);
+		int width1 = random1.integer(1, 3);
 		int val = random1.integer(1, 100);
 
 		if (n1 != n2) {
